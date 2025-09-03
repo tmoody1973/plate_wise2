@@ -99,12 +99,21 @@ export async function GET(request: NextRequest) {
       })),
       meta: {
         has_more: false,
-        sources: result.sources.map(url => ({ url, title: '' })),
+        sources: result.sources
+          .filter(url => {
+            try {
+              new URL(url);
+              return true;
+            } catch {
+              return false;
+            }
+          })
+          .map(url => ({ url, title: '' })),
         used_filters: {
           query,
           country,
-          includeIngredients,
-          excludeIngredients,
+          includeIngredients: includeIngredients || [],
+          excludeIngredients: excludeIngredients || [],
           maxResults
         }
       }

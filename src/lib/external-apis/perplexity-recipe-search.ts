@@ -148,6 +148,7 @@ class PerplexityRecipeSearchService {
       const content = result.choices[0]?.message?.content;
       
       console.log('🤖 Perplexity recipe search response length:', content?.length || 0);
+      console.log('🤖 Raw API response:', content);
       console.log('🤖 First 500 chars:', content?.substring(0, 500));
       
       if (!content) {
@@ -218,14 +219,17 @@ class PerplexityRecipeSearchService {
 
     return `${searchCriteria}
 
-Find 1 high-quality recipe.${filters}
+Find exactly ${maxResults || 1} recipe(s).${filters}
 
-Return JSON with: title, description, cuisine, culturalOrigin, ingredients (name, amount, unit), instructions (step, text, timing, temperature), nutritionalInfo, metadata (sourceUrl, servings, totalTimeMinutes, difficulty), tags.
+For each instruction step, include ALL details in the text field:
+- Exact timing (e.g., "cook for 5 minutes", "let rest for 10 minutes")  
+- Temperatures (e.g., "heat oil to 350°F", "preheat oven to 400°F")
+- Visual cues (e.g., "until golden brown", "until bubbling")
+- Techniques (e.g., "fold gently", "whisk vigorously")
+- Tips for beginners
 
-JSON format:
-{"recipes":[{"title":"Recipe Name","description":"Brief description","cuisine":"Cuisine","culturalOrigin":["Culture"],"ingredients":[{"name":"ingredient","amount":1,"unit":"cup"}],"instructions":[{"step":1,"text":"Detailed instruction","timing":{"duration":5,"isActive":true},"temperature":{"value":350,"unit":"F","type":"stovetop"}}],"nutritionalInfo":{"calories":400,"protein_g":20,"fat_g":15,"carbs_g":30},"metadata":{"sourceUrl":"https://url","servings":4,"totalTimeMinutes":30,"difficulty":"medium"},"tags":["tag1"]}]}
-
-Return ONLY JSON.`;
+Return ONLY this exact JSON structure:
+{"recipes":[{"title":"string","description":"string","cuisine":"string","culturalOrigin":["string"],"ingredients":[{"name":"string","amount":number,"unit":"string"}],"instructions":[{"step":number,"text":"detailed instruction with all timing, temperature, and technique details"}],"nutritionalInfo":{"calories":number,"protein_g":number,"fat_g":number,"carbs_g":number},"metadata":{"sourceUrl":"string","servings":number,"totalTimeMinutes":number,"difficulty":"easy|medium|hard"},"tags":["string"]}]}`;
   }
 
   /**
@@ -236,6 +240,8 @@ Return ONLY JSON.`;
       // Clean the content
       let cleanedContent = content.trim();
       
+      console.log('🔍 Original content to parse:', cleanedContent.substring(0, 200));
+      
       // Remove any code fences
       cleanedContent = cleanedContent
         .replace(/^```json\s*/i, '')
@@ -244,13 +250,31 @@ Return ONLY JSON.`;
 
       // Try to fix common JSON issues
       cleanedContent = this.fixCommonJSONIssues(cleanedContent);
+      
+      console.log('🔧 After cleaning:', cleanedContent.substring(0, 200));
 
       const parsed = JSON.parse(cleanedContent);
       
+      console.log('✅ Successfully parsed JSON, structure:', Object.keys(parsed));
+      
       if (parsed.recipes && Array.isArray(parsed.recipes)) {
+        console.log(`📦 Found ${parsed.recipes.length} recipes in standard format`);
         return parsed.recipes.map((recipe: any) => this.normalizeRecipe(recipe));
       }
+      
+      // Check if the response IS the recipes array directly
+      if (Array.isArray(parsed)) {
+        console.log(`📦 Response is direct array of ${parsed.length} recipes`);
+        return parsed.map((recipe: any) => this.normalizeRecipe(recipe));
+      }
+      
+      // Check for a single recipe object
+      if (parsed.title && parsed.ingredients) {
+        console.log('📦 Response is a single recipe object');
+        return [this.normalizeRecipe(parsed)];
+      }
 
+      console.error('❌ Unexpected JSON structure:', parsed);
       throw new Error('Invalid recipe response structure - no recipes array found');
     } catch (error) {
       console.error('❌ Error parsing recipe search response:', error);
@@ -389,12 +413,21 @@ Return ONLY JSON.`;
    * Normalize recipe data to ensure consistency
    */
   private normalizeRecipe(recipe: any): PerplexityRecipe {
-    const ingredients = (recipe.ingredients || []).map((ing: any, index: number) => ({
-      name: ing.name || ing.item || `Unknown ingredient ${index + 1}`,
-      amount: typeof ing.amount === 'number' ? ing.amount : (parseFloat(ing.amount) || 1),
-      unit: ing.unit || 'unit',
-      notes: ing.notes || ''
-    }));
+    const ingredients = (recipe.ingredients || []).map((ing: any, index: number) => {
+      // Handle both 'amount' and 'quantity' fields from API response
+      const amountValue = ing.amount || ing.quantity || 1;
+      const parsedAmount = typeof amountValue === 'number' ? amountValue : (parseFloat(amountValue) || 1);
+      
+      // Handle both 'name' and 'item' fields - prefer 'name' but fall back to 'item'
+      const ingredientName = ing.name || ing.item || `Unknown ingredient ${index + 1}`;
+      
+      return {
+        name: ingredientName,
+        amount: parsedAmount,
+        unit: ing.unit || 'unit',
+        notes: ing.notes || ''
+      };
+    });
     
     return {
       title: recipe.title || 'Untitled Recipe',
@@ -460,20 +493,27 @@ Return ONLY JSON.`;
 
         return instruction;
       }),
-      nutritionalInfo: recipe.nutritionalInfo ? {
-        calories: typeof recipe.nutritionalInfo.calories === 'number' 
-          ? recipe.nutritionalInfo.calories 
-          : parseFloat(recipe.nutritionalInfo.calories) || 0,
-        protein_g: typeof recipe.nutritionalInfo.protein_g === 'number' 
-          ? recipe.nutritionalInfo.protein_g 
-          : parseFloat(recipe.nutritionalInfo.protein_g) || 0,
-        fat_g: typeof recipe.nutritionalInfo.fat_g === 'number' 
-          ? recipe.nutritionalInfo.fat_g 
-          : parseFloat(recipe.nutritionalInfo.fat_g) || 0,
-        carbs_g: typeof recipe.nutritionalInfo.carbs_g === 'number' 
-          ? recipe.nutritionalInfo.carbs_g 
-          : parseFloat(recipe.nutritionalInfo.carbs_g) || 0
-      } : undefined,
+      nutritionalInfo: (() => {
+        // Check for both 'nutritionalInfo' and 'nutrition' fields
+        const nutritionData = recipe.nutritionalInfo || recipe.nutrition;
+        
+        if (!nutritionData) return undefined;
+        
+        // Helper to safely parse numeric values
+        const parseNumeric = (value: any): number => {
+          if (value === null || value === undefined) return 0;
+          if (typeof value === 'number') return value;
+          const parsed = parseFloat(value);
+          return isNaN(parsed) ? 0 : parsed;
+        };
+        
+        return {
+          calories: parseNumeric(nutritionData.calories),
+          protein_g: parseNumeric(nutritionData.protein_g),
+          fat_g: parseNumeric(nutritionData.fat_g),
+          carbs_g: parseNumeric(nutritionData.carbs_g)
+        };
+      })(),
       metadata: {
         sourceUrl: recipe.metadata?.sourceUrl || recipe.source || '',
         servings: typeof (recipe.metadata?.servings || recipe.servings) === 'number' 
