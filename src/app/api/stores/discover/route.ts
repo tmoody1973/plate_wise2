@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { geocodingService } from '@/lib/external-apis/geocoding-service'
-import { googlePlacesService } from '@/lib/external-apis/google-places-service'
+// Lazy-load services to avoid constructor throws when keys are missing
 
 export const runtime = 'edge'
 export const preferredRegion = ['cle1']
@@ -17,7 +16,10 @@ export async function POST(req: NextRequest) {
     // Geocode the provided location string
     let geo = null as any
     try {
-      geo = await geocodingService.geocodeAddress(locationString)
+      if (process.env.GOOGLE_PLACES_API_KEY) {
+        const { geocodingService } = await import('@/lib/external-apis/geocoding-service')
+        geo = await geocodingService.geocodeAddress(locationString)
+      }
     } catch (e) {
       // If Google key missing, geocodingService throws; fall back to simple parse
       const parts = locationString.split(',').map((s: string) => s.trim())
@@ -39,11 +41,16 @@ export async function POST(req: NextRequest) {
     // Find nearby grocery stores if Places is available; otherwise use fallback list
     let storeNames: string[] = []
     try {
-      const stores = await googlePlacesService.findNearbyGroceryStores(outLocation.coordinates, radiusMeters)
-      storeNames = stores
-        .map(s => s.name)
-        .filter(Boolean)
-        .slice(0, maxResults)
+      if (process.env.GOOGLE_PLACES_API_KEY) {
+        const { googlePlacesService } = await import('@/lib/external-apis/google-places-service')
+        const stores = await googlePlacesService.findNearbyGroceryStores(outLocation.coordinates, radiusMeters)
+        storeNames = stores
+          .map(s => s.name)
+          .filter(Boolean)
+          .slice(0, maxResults)
+      } else {
+        throw new Error('no_google_places_key')
+      }
     } catch {
       // Fallback per city/state
       const fallbackByState: Record<string, string[]> = {
@@ -77,4 +84,3 @@ export async function GET(req: NextRequest) {
     body: JSON.stringify({ location: loc, radius, maxResults })
   }))
 }
-

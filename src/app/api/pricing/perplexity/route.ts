@@ -3,7 +3,8 @@ import { buildPerplexityPrompt } from '@/lib/pricing/perplexity-prompt'
 import { createClient } from '@/lib/supabase/server'
 import { normalizeUnit, parsePackSize, estimateIngredientCost, convert } from '@/utils/units'
 import { estimateIngredientCost as heuristicCost } from '@/lib/recipes/cost-estimator'
-import { googlePlacesService } from '@/lib/external-apis/google-places-service'
+// Avoid static import of Google Places service (constructor throws without API key).
+// We'll lazy-load it inside functions when GOOGLE_PLACES_API_KEY is present.
 import { ingredientQuantityNormalizer } from '@/lib/recipes/ingredient-quantity-normalizer'
 
 type PricingCompare = Record<string, Array<{ store: string; price: number | string; tags?: string[] }>>
@@ -818,6 +819,7 @@ async function findGlobalMarkets(
         ['asian market', 'mexican market', 'indian grocery', 'international market', 'global grocery'].map(q => `${q} ${city}`)
       
       for (const query of searchQueries) {
+        const { googlePlacesService } = await import('@/lib/external-apis/google-places-service')
         const stores = await googlePlacesService.searchStores(query)
         
         for (const store of stores.slice(0, 3)) { // Limit to top 3 per query
@@ -873,6 +875,7 @@ async function getVerifiedStoreAddress(
       // Search for the store in the specified location, fallback to city if location is empty
       const searchLocation = location || city || 'Atlanta, GA'
       const searchQuery = `${storeName} ${searchLocation}`
+      const { googlePlacesService } = await import('@/lib/external-apis/google-places-service')
       const stores = await googlePlacesService.searchStores(searchQuery)
       
       if (stores && stores.length > 0) {
@@ -1043,7 +1046,7 @@ export async function POST(request: NextRequest) {
       
       // Add a conservative timeout to avoid platform timeouts
       const controller = new AbortController()
-      const timeoutMs = process.env.NODE_ENV === 'development' ? 60000 : 25000
+      const timeoutMs = process.env.NODE_ENV === 'development' ? 60000 : 28000
       const timeoutId = setTimeout(() => controller.abort(), timeoutMs)
       const perplexityResponse = await fetch('https://api.perplexity.ai/chat/completions', {
         method: 'POST',
@@ -1063,7 +1066,7 @@ export async function POST(request: NextRequest) {
               content: prompt
             }
           ],
-          max_tokens: 1500, // keep bounded for responsiveness
+          max_tokens: 1200, // balanced for multi-ingredient without risking timeout
           temperature: 0.1,
           top_p: 0.9
         }),
@@ -1210,25 +1213,14 @@ export async function POST(request: NextRequest) {
         }
       }
 
-    } catch (error) {
+    } catch (error: any) {
       console.error('Batch pricing error:', error)
-      // Fallback: create estimates for all ingredients
-      for (let i = 0; i < ingredients.length; i++) {
-        const ingredient = ingredients[i]!
-        results.push({
-          id: i + 1,
-          original: ingName(ingredient),
-          matched: 'Pricing unavailable',
-          priceLabel: undefined,
-          estimatedCost: 2.99, // Basic fallback estimate
-          portionCost: 2.99,
-          packagePrice: 0,
-          packageSize: undefined,
-          confidence: 0.1,
-          needsReview: true,
-          packages: 1
-        })
+      // If this was an abort/timeout, surface as an error so the UI can retry or inform the user
+      if (error?.name === 'AbortError') {
+        return NextResponse.json({ error: 'perplexity_timeout' }, { status: 504 })
       }
+      // Surface non-timeout errors explicitly
+      return NextResponse.json({ error: error?.message || 'perplexity_failed' }, { status: 502 })
     }
 
     // Generate shopping plan if requested
