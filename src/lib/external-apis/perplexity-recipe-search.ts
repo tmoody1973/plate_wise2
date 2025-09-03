@@ -104,9 +104,9 @@ class PerplexityRecipeSearchService {
     try {
       const prompt = this.buildRecipeSearchPrompt(request);
       
-      // Create timeout controller for 25 seconds (5 seconds buffer before Vercel timeout)
+      // Create timeout controller for 55 seconds (5 seconds buffer before Vercel timeout)
       const controller = new AbortController();
-      const timeoutMs = process.env.NODE_ENV === 'development' ? 60000 : 25000; // 60s for dev, 25s for production
+      const timeoutMs = process.env.NODE_ENV === 'development' ? 60000 : 55000; // 60s for dev, 55s for production
       const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
       
       const response = await fetch(this.baseURL, {
@@ -127,8 +127,8 @@ class PerplexityRecipeSearchService {
               content: prompt
             }
           ],
-          max_tokens: 1500, // Optimized for faster response
-          temperature: 0.1,
+          max_tokens: 1200, // Further reduced for speed
+          temperature: 0.0, // Minimum for fastest response
           return_citations: true,
           search_domain_filter: [
             'allrecipes.com', 'food.com', 'epicurious.com', 'simplyrecipes.com',

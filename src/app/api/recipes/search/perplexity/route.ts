@@ -1,7 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { perplexityRecipeSearchService } from '@/lib/external-apis/perplexity-recipe-search'
 
+// Increase timeout for this specific API route
+export const maxDuration = 60;
+
 export async function GET(request: NextRequest) {
+  const startTime = Date.now();
+  
   try {
     const { searchParams } = new URL(request.url)
     const query = searchParams.get('query') || ''
@@ -59,7 +64,8 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    console.log('✅ Found', result.recipes.length, 'recipes via Perplexity')
+    const duration = Date.now() - startTime;
+    console.log('✅ Found', result.recipes.length, 'recipes via Perplexity in', duration + 'ms')
 
     // Transform to match the existing API format for compatibility
     const transformedResponse = {
