@@ -18,74 +18,74 @@ export function buildPerplexityPrompt(opts: BuildPerplexityPromptOptions): strin
   const defaultStoreName = opts.defaultStore ?? ''
   const preferredStores = Array.isArray(opts.preferredStores) ? opts.preferredStores.filter(Boolean) : []
 
-  // Handle multiple ingredients or single ingredient
+  // Handle multiple ingredients or single ingredient (batch preferred)
   let ingredientSection = ''
   if (opts.ingredients && opts.ingredients.length > 0) {
-    ingredientSection = `Find current grocery store prices for these ingredients in ZIP code ${location}:
+    ingredientSection = `Find current grocery prices for these ingredients in ZIP ${location} (city: ${city}). Use ONLY MAJOR GROCERY CHAINS that actually operate in ${city}:
 
-${opts.ingredients.map((ing, i) => `${i + 1}. ${ing.name} - Amount needed: ${ing.amount} ${ing.unit}`).join('\n')}`
+${opts.ingredients.map((ing, i) => `- { "name": "${ing.name}", "amount": ${ing.amount}, "unit": "${ing.unit}" }`).join('\n')}`
   } else if (opts.ingredient) {
     const amount = opts.amount ?? 1
     const unit = opts.unit ?? 'unit'
-    ingredientSection = `Find current grocery store prices for "${opts.ingredient}" in ZIP code ${location}.
-Amount needed: ${amount} ${unit}`
+    ingredientSection = `Find current grocery prices for "${opts.ingredient}" (amount: ${amount} ${unit}) in ZIP ${location} (city: ${city}). Use ONLY MAJOR GROCERY CHAINS that actually operate in ${city}.`
   }
+
+  // Major chains restriction list
+  const majorChains = [
+    "Walmart","Target","Kroger","Publix","Safeway","Albertsons","Aldi","Costco","Sam's Club",
+    "Whole Foods Market","Trader Joe's","Meijer","H‑E‑B","Food Lion","Giant","Stop & Shop",
+    "Winn‑Dixie","Ralphs","Vons","Fred Meyer","Harris Teeter","Hy‑Vee","Wegmans"
+  ]
 
   return `${ingredientSection}
 
-Cultural context: ${culturalContext}
-User city: ${city}
+Cultural context (for naming only): ${culturalContext}
 Preferred default store (if present): ${defaultStoreName}
-Preferred stores (in priority order, if available): ${preferredStores.join(', ')}
+Preferred stores (priority order if available): ${preferredStores.join(', ')}
 
-CRITICAL LOCATION REQUIREMENTS:
-- ONLY use stores that ACTUALLY EXIST in ${city} or ZIP ${location}
-- VERIFY store addresses are real and accurate for the specified location
-- Do NOT suggest stores that don't have locations in the specified area
-- For Milwaukee/Wisconsin: Use Pick 'n Save, Metro Market, Woodman's, Walmart, Target, Aldi, Meijer, Festival Foods
-- Do NOT use H-Mart in Wisconsin (no locations exist there)
-- Do NOT use H‑E‑B in Wisconsin (Texas chain only)
-- Do NOT use Publix in Wisconsin (Southeast US only)
-- Do NOT use Safeway in Wisconsin (not in this market)
+STRICT STORE POLICY:
+- ONLY use these major chains (and only if they have locations in ${city}): ${majorChains.join(', ')}
+- Do NOT use independent, specialty, or ethnic-only markets. Ignore H Mart, international markets, and small independents.
+- Do NOT invent chains or locations. If a chain is not in ${city}, omit it.
 
-Common stores by region:
-- Milwaukee/Wisconsin: Pick 'n Save, Metro Market, Woodman's, Festival Foods, Walmart, Target, Aldi, Costco, Sam's Club, Whole Foods, Meijer, Fresh Thyme
-- For ethnic ingredients in Milwaukee: Use Cermak Fresh Market, El Rey, Asian International Market, Mo's Irish Pub
-- California: Ralphs, Vons, Safeway, Trader Joe's, Whole Foods, Target, Walmart
-- Texas: H‑E‑B, Kroger, Walmart, Target
-- Southeast: Publix, Kroger, Walmart, Target
+PRICING RULES:
+- Compute portionCost for the recipe's amount/unit from the packageSize and packagePrice (e.g., tbsp↔ml, lb↔g). Prefer realistic sizes; if adjusting, reflect in productName.
+- Label unitPrice clearly (e.g., "$3.99/lb", "$0.59/oz", "$0.15/tbsp").
+- The top-level entry per ingredient should be the BEST option (lowest portionCost). Provide 2–5 additional chain choices in "options", sorted by portionCost.
+- All store addresses must be strings appropriate to ${city} (accept known city-level location strings when a precise street is not available).
+- If exact brand/size is unavailable, pick a close chain-brand alternative and note it in productName.
 
-For EACH ingredient, find stores that ACTUALLY EXIST at the specified location.
-
-For each ingredient, provide:
-1. Store name (MUST exist in ${city})
-2. Exact product name
-3. Package size and full pack price
-4. Price per unit (per pound, per ounce, etc.)
-5. Estimated cost for the recipe portion needed
-6. REAL store address in ${city} (must be verifiable)
-7. Product page URL or authoritative source URL
-8. Label the store as storeType: mainstream, ethnic, or specialty
-
-Format output as a JSON ARRAY with one object per ingredient:
+OUTPUT FORMAT (JSON ARRAY ONLY — no prose):
 [
   {
-    "ingredient": "ingredient name from request",
-    "storeName": "",
-    "productName": "",
-    "packageSize": "",
+    "ingredient": "string",
+    "storeName": "string",
+    "productName": "string",
+    "packageSize": "string",
     "packagePrice": 0,
-    "unitPrice": "",
+    "unitPrice": "string",
     "portionCost": 0,
     "storeType": "mainstream",
-    "storeAddress": "",
-    "sourceUrl": ""
+    "storeAddress": "string",
+    "sourceUrl": null,
+    "options": [
+      {
+        "storeName": "string",
+        "productName": "string",
+        "packageSize": "string",
+        "packagePrice": 0,
+        "unitPrice": "string",
+        "portionCost": 0,
+        "storeType": "mainstream",
+        "storeAddress": "string",
+        "sourceUrl": null
+      }
+    ]
   }
 ]
 
-CRITICAL: 
-- Return exactly one result per ingredient requested
-- ONLY use stores that actually exist in ${city}
-- Provide REAL, VERIFIABLE addresses
-- If ${defaultStoreName} exists in the area and carries the item, prefer it when costs are similar`
+CRITICAL:
+- Return ONE top-level object per requested ingredient (the best chain option) plus 2–5 chain alternatives in "options".
+- ONLY use major chains present in ${city}. Provide realistic prices and addresses.
+- Return ONLY the JSON array. No markdown or extra text.`
 }
