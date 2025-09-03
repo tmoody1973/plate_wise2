@@ -331,20 +331,11 @@ export default function RecipeDetailPage() {
         console.error('📡 Perplexity API error details:', errorText);
       }
 
-      // Fallback to Kroger if Perplexity fails (unless forced)
+      // Do not fallback to Kroger — we require Perplexity pricing per requirements
       if (!res.ok) {
-        const forcePerplexity = process.env.NEXT_PUBLIC_FORCE_PERPLEXITY === 'true'
-        if (forcePerplexity) {
-          const err = await res.json().catch(async () => ({ error: await res.text().catch(() => `HTTP ${res.status}`) }))
-          addToast({ type: 'error', title: 'Perplexity pricing failed', message: typeof err?.error === 'string' ? err.error : `HTTP ${res.status}` })
-          throw new Error(typeof err?.error === 'string' ? err.error : `Perplexity failed: ${res.status}`)
-        }
-        console.warn('Perplexity pricing failed, falling back to Kroger')
-        res = await fetch('/api/pricing/ingredients', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload),
-        });
+        const err = await res.json().catch(async () => ({ error: await res.text().catch(() => `HTTP ${res.status}`) }))
+        addToast({ type: 'error', title: 'Perplexity pricing failed', message: typeof err?.error === 'string' ? err.error : `HTTP ${res.status}` })
+        throw new Error(typeof err?.error === 'string' ? err.error : `HTTP ${res.status}`)
       }
       if (!res.ok) {
         const err = await res.json().catch(async () => ({ error: await res.text().catch(() => `HTTP ${res.status}`) }))
