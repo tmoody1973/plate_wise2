@@ -1,0 +1,452 @@
+@import url('https://fonts.googleapis.com/css2?family=Fredoka:wght@300;400;500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Animation delays for food elements */
+.animation-delay-1000 {
+  animation-delay: 1s;
+}
+
+.animation-delay-2000 {
+  animation-delay: 2s;
+}
+
+:root {
+  /* Default cultural theme variables */
+  --cultural-primary: #f97316;
+  --cultural-secondary: #3b82f6;
+  --cultural-accent: #10b981;
+  --cultural-gradient: linear-gradient(135deg, #f97316, #3b82f6, #10b981);
+  --cultural-pattern-bg: none;
+  --cultural-pattern-accent: none;
+  --cultural-font-heading: 'Inter';
+  --cultural-font-body: 'Inter';
+  --cultural-hue-shift: 0deg;
+}
+
+/* Cultural theme classes */
+.theme-default {
+  --cultural-primary: #f97316;
+  --cultural-secondary: #3b82f6;
+  --cultural-accent: #10b981;
+  --cultural-gradient: linear-gradient(135deg, #f97316, #3b82f6, #10b981);
+  --cultural-hue-shift: 0deg;
+}
+
+.theme-mediterranean {
+  --cultural-primary: #E67E22;
+  --cultural-secondary: #27AE60;
+  --cultural-accent: #3498DB;
+  --cultural-gradient: linear-gradient(135deg, #E67E22, #F39C12, #27AE60);
+  --cultural-pattern-bg: url("data:image/svg+xml,%3Csvg width='40' height='40' viewBox='0 0 40 40' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='%23E67E22' fill-opacity='0.05'%3E%3Cpath d='M20 20c0-5.5-4.5-10-10-10s-10 4.5-10 10 4.5 10 10 10 10-4.5 10-10zm10 0c0-5.5-4.5-10-10-10s-10 4.5-10 10 4.5 10 10 10 10-4.5 10-10z'/%3E%3C/g%3E%3C/svg%3E");
+  --cultural-hue-shift: 0deg;
+}
+
+.theme-asian {
+  --cultural-primary: #E74C3C;
+  --cultural-secondary: #F39C12;
+  --cultural-accent: #8E44AD;
+  --cultural-gradient: linear-gradient(135deg, #E74C3C, #F39C12, #8E44AD);
+  --cultural-pattern-bg: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='%23E74C3C' fill-opacity='0.05'%3E%3Cpath d='M30 30c0-8.3-6.7-15-15-15s-15 6.7-15 15 6.7 15 15 15 15-6.7 15-15zm15 0c0-8.3-6.7-15-15-15s-15 6.7-15 15 6.7 15 15 15 15-6.7 15-15z'/%3E%3C/g%3E%3C/svg%3E");
+  --cultural-hue-shift: 15deg;
+}
+
+.theme-latin {
+  --cultural-primary: #FF6B6B;
+  --cultural-secondary: #4ECDC4;
+  --cultural-accent: #45B7D1;
+  --cultural-gradient: linear-gradient(135deg, #FF6B6B, #4ECDC4, #45B7D1);
+  --cultural-pattern-bg: url("data:image/svg+xml,%3Csvg width='80' height='80' viewBox='0 0 80 80' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='%23FF6B6B' fill-opacity='0.05'%3E%3Cpath d='M0 0h80v80H0V0zm20 20v40h40V20H20zm20 35a15 15 0 1 1 0-30 15 15 0 0 1 0 30z'/%3E%3C/g%3E%3C/svg%3E");
+  --cultural-hue-shift: 30deg;
+}
+
+.theme-african {
+  --cultural-primary: #D35400;
+  --cultural-secondary: #27AE60;
+  --cultural-accent: #F1C40F;
+  --cultural-gradient: linear-gradient(135deg, #D35400, #27AE60, #F1C40F);
+  --cultural-pattern-bg: url("data:image/svg+xml,%3Csvg width='100' height='100' viewBox='0 0 100 100' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='%23D35400' fill-opacity='0.05'%3E%3Cpath d='M50 50L25 25h50L50 50zm0 0L75 75H25L50 50z'/%3E%3C/g%3E%3C/svg%3E");
+  --cultural-hue-shift: 45deg;
+}
+
+.theme-middle-eastern {
+  --cultural-primary: #8E44AD;
+  --cultural-secondary: #E67E22;
+  --cultural-accent: #16A085;
+  --cultural-gradient: linear-gradient(135deg, #8E44AD, #E67E22, #16A085);
+  --cultural-pattern-bg: url("data:image/svg+xml,%3Csvg width='120' height='120' viewBox='0 0 120 120' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='%238E44AD' fill-opacity='0.05'%3E%3Cpath d='M60 60L30 30h60L60 60zm0 0L90 90H30L60 60zm0-60L30 30V0h60V30L60 0zm0 120L30 90v30h60V90L60 120z'/%3E%3C/g%3E%3C/svg%3E");
+  --cultural-hue-shift: 60deg;
+}
+
+/* Cultural pattern backgrounds */
+.cultural-pattern-bg {
+  background-image: var(--cultural-pattern-bg);
+}
+
+/* Theme-aware utility classes */
+.bg-cultural-primary {
+  background-color: var(--cultural-primary);
+}
+
+.bg-cultural-secondary {
+  background-color: var(--cultural-secondary);
+}
+
+.bg-cultural-accent {
+  background-color: var(--cultural-accent);
+}
+
+.bg-cultural-gradient {
+  background: var(--cultural-gradient);
+}
+
+.text-cultural-primary {
+  color: var(--cultural-primary);
+}
+
+.text-cultural-secondary {
+  color: var(--cultural-secondary);
+}
+
+.text-cultural-accent {
+  color: var(--cultural-accent);
+}
+
+.border-cultural-primary {
+  border-color: var(--cultural-primary);
+}
+
+.border-cultural-secondary {
+  border-color: var(--cultural-secondary);
+}
+
+.border-cultural-accent {
+  border-color: var(--cultural-accent);
+}
+
+/* Clean, organized layout styles */
+.section-padding {
+  @apply py-16 md:py-20;
+}
+
+.container-padding {
+  @apply px-4 sm:px-6 lg:px-8;
+}
+
+/* Card styles inspired by the screenshot */
+.recipe-card {
+  @apply bg-white rounded-2xl shadow-lg overflow-hidden;
+  @apply hover:shadow-xl transition-all duration-300;
+}
+
+.recipe-card:hover {
+  transform: translateY(-4px);
+}
+
+/* Button styles */
+.btn-primary {
+  @apply bg-orange-500 text-white px-6 py-2 rounded-full font-medium;
+  @apply hover:bg-orange-600 transition-colors duration-200;
+}
+
+.btn-secondary {
+  @apply border-2 border-gray-300 text-gray-700 px-6 py-2 rounded-full font-medium;
+  @apply hover:border-orange-500 hover:text-orange-500 transition-colors duration-200;
+}
+
+/* Typography improvements */
+.heading-primary {
+  @apply text-4xl md:text-5xl lg:text-6xl font-semibold text-gray-900 font-heading leading-tight;
+  font-weight: 600;
+}
+
+.heading-secondary {
+  @apply text-3xl md:text-4xl font-semibold text-gray-900 font-heading;
+  font-weight: 600;
+}
+
+.heading-tertiary {
+  @apply text-2xl md:text-3xl font-semibold text-gray-900 font-heading;
+  font-weight: 600;
+}
+
+.text-body {
+  @apply text-lg text-gray-600 font-sans leading-relaxed;
+}
+
+/* Fredoka heading utilities */
+h1, h2, h3, h4, h5, h6 {
+  font-family: 'Fredoka', system-ui, sans-serif;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+/* Recipe card styling */
+.recipe-card {
+  @apply rounded-2xl overflow-hidden shadow-lg transition-all duration-300;
+  @apply hover:shadow-xl hover:scale-105;
+  background: linear-gradient(135deg, var(--cultural-primary), var(--cultural-secondary));
+}
+
+.recipe-card-content {
+  @apply p-6 bg-white bg-opacity-95 backdrop-blur-sm;
+}
+
+.recipe-card-image {
+  @apply aspect-video object-cover;
+  filter: brightness(1.1) contrast(1.1);
+}
+
+/* Budget card styling */
+.budget-card {
+  @apply bg-gradient-to-br from-green-400 to-blue-500;
+  @apply text-white rounded-2xl p-6 shadow-lg;
+}
+
+.spending-progress {
+  @apply h-4 bg-white bg-opacity-30 rounded-full overflow-hidden;
+}
+
+.progress-bar {
+  @apply h-full bg-white rounded-full transition-all duration-500;
+  background: linear-gradient(90deg, #4ADE80, #F59E0B, #EF4444);
+}
+
+/* Loading states */
+.card-loading {
+  @apply animate-pulse bg-gradient-to-r from-gray-200 via-gray-300 to-gray-200;
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+/* Cultural logo adaptation */
+.logo-cultural-adaptation {
+  filter: hue-rotate(var(--cultural-hue-shift));
+}
+
+.logo-festival-mode {
+  animation: cultural-glow 3s ease-in-out infinite;
+}
+
+/* Festival mode animations */
+.festival-mode .bento-card {
+  animation: celebrate 2s ease-in-out infinite alternate;
+}
+
+/* Additional engaging animations */
+@keyframes float {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-10px); }
+}
+
+@keyframes glow {
+  0%, 100% { box-shadow: 0 0 20px rgba(59, 130, 246, 0.3); }
+  50% { box-shadow: 0 0 40px rgba(59, 130, 246, 0.6); }
+}
+
+@keyframes slideInUp {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-float {
+  animation: float 3s ease-in-out infinite;
+}
+
+.animate-glow {
+  animation: glow 2s ease-in-out infinite;
+}
+
+.animate-slide-in-up {
+  animation: slideInUp 0.6s ease-out;
+}
+
+/* Hover effects for cards */
+.card-hover-effect {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.card-hover-effect:hover {
+  transform: translateY(-8px) scale(1.02);
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+}
+
+/* Bento Grid System */
+.bento-grid {
+  @apply grid gap-4 p-4;
+  grid-template-columns: 1fr;
+}
+
+/* Tablet */
+@media (min-width: 768px) {
+  .bento-grid {
+    @apply gap-6 p-6;
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+/* Desktop */
+@media (min-width: 1024px) {
+  .bento-grid {
+    @apply gap-8 p-8;
+    grid-template-columns: repeat(4, 1fr);
+  }
+}
+
+/* Large Desktop */
+@media (min-width: 1280px) {
+  .bento-grid {
+    grid-template-columns: repeat(6, 1fr);
+  }
+}
+
+/* Bento Card Base Styles */
+.bento-card {
+  @apply rounded-2xl overflow-hidden shadow-lg transition-all duration-300 ease-out;
+  @apply hover:shadow-2xl;
+  min-height: 200px;
+  position: relative;
+}
+
+.bento-card:hover {
+  filter: brightness(1.05);
+}
+
+/* Card Size Classes */
+.bento-card.col-span-1.row-span-1 {
+  /* Small card */
+  min-height: 180px;
+}
+
+.bento-card.col-span-2.row-span-1 {
+  /* Medium card */
+  min-height: 200px;
+}
+
+.bento-card.col-span-2.row-span-2 {
+  /* Large card */
+  min-height: 400px;
+}
+
+.bento-card.col-span-3.row-span-1 {
+  /* Wide card */
+  min-height: 200px;
+}
+
+.bento-card.col-span-1.row-span-2 {
+  /* Tall card */
+  min-height: 400px;
+}
+
+.bento-card.col-span-4.row-span-2 {
+  /* Hero card */
+  min-height: 400px;
+}
+
+/* Card Content Padding */
+.bento-card > div {
+  @apply p-6;
+  height: 100%;
+}
+
+/* Cultural Theme Adaptations for Cards */
+.bento-card.theme-mediterranean {
+  background: linear-gradient(135deg, var(--cultural-primary), var(--cultural-secondary));
+}
+
+.bento-card.theme-asian {
+  background: linear-gradient(135deg, var(--cultural-primary), var(--cultural-secondary));
+}
+
+.bento-card.theme-latin {
+  background: linear-gradient(135deg, var(--cultural-primary), var(--cultural-secondary));
+}
+
+.bento-card.theme-african {
+  background: linear-gradient(135deg, var(--cultural-primary), var(--cultural-secondary));
+}
+
+.bento-card.theme-middle-eastern {
+  background: linear-gradient(135deg, var(--cultural-primary), var(--cultural-secondary));
+}
+
+/* Accessibility improvements */
+@media (prefers-reduced-motion: reduce) {
+  .bento-card,
+  .recipe-card,
+  .logo-festival-mode,
+  .festival-mode .bento-card {
+    animation: none;
+    transition: none;
+  }
+  
+  .bento-card:hover,
+  .recipe-card:hover {
+    transform: none;
+  }
+}
+
+/* Focus styles for accessibility */
+.bento-card:focus-visible,
+.recipe-card:focus-visible {
+  @apply outline-none ring-4 ring-blue-500 ring-opacity-50;
+}
+
+/* Landing page animations */
+.animation-delay-2000 {
+  animation-delay: 2s;
+}
+
+.animation-delay-4000 {
+  animation-delay: 4s;
+}
+
+/* Smooth scroll behavior */
+html {
+  scroll-behavior: smooth;
+}
+
+/* Landing page hero gradient text */
+.gradient-text {
+  background: linear-gradient(135deg, #f43f5e, #f97316);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* Landing page feature cards hover effect */
+.feature-card {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.feature-card:hover {
+  transform: translateY(-4px);
+}
+
+/* Cultural theme cards */
+.cultural-theme-card {
+  transition: all 0.2s ease-in-out;
+}
+
+.cultural-theme-card:hover {
+  transform: scale(1.05);
+}
+
+/* Button hover effects */
+.btn-gradient {
+  background: linear-gradient(135deg, #f43f5e, #f97316);
+  transition: all 0.2s ease-in-out;
+}
+
+.btn-gradient:hover {
+  box-shadow: 0 10px 25px -5px rgba(244, 63, 94, 0.4);
+  transform: translateY(-1px);
+}

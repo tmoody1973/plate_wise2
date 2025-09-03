@@ -1,0 +1,16 @@
+<svg width="160" height="40" viewBox="0 0 160 40" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="wordmarkGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:var(--cultural-primary, #f97316);stop-opacity:1" />
+      <stop offset="100%" style="stop-color:var(--cultural-secondary, #3b82f6);stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  
+  <!-- PlateWise Text -->
+  <text x="0" y="28" font-family="Inter, sans-serif" font-size="32" font-weight="700" fill="url(#wordmarkGradient)">
+    PlateWise
+  </text>
+  
+  <!-- Underline accent -->
+  <rect x="0" y="32" width="160" height="2" fill="var(--cultural-accent, #10b981)" opacity="0.6"/>
+</svg>

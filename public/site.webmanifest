@@ -1,0 +1,84 @@
+{
+  "name": "PlateWise - Cultural Meal Planning & Budget Optimization",
+  "short_name": "PlateWise",
+  "description": "A culturally-aware, AI-driven meal planning platform that helps families and individuals optimize their food budgets while preserving culinary traditions.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#f97316",
+  "orientation": "portrait-primary",
+  "categories": ["food", "lifestyle", "productivity"],
+  "lang": "en",
+  "icons": [
+    {
+      "src": "/assets/logo/favicon/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/assets/logo/favicon/android-chrome-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/assets/logo/favicon/android-chrome-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ],
+  "screenshots": [
+    {
+      "src": "/assets/screenshots/dashboard-wide.png",
+      "sizes": "1280x720",
+      "type": "image/png",
+      "form_factor": "wide",
+      "label": "PlateWise Dashboard - Wide View"
+    },
+    {
+      "src": "/assets/screenshots/dashboard-narrow.png",
+      "sizes": "390x844",
+      "type": "image/png",
+      "form_factor": "narrow",
+      "label": "PlateWise Dashboard - Mobile View"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Create Meal Plan",
+      "short_name": "Meal Plan",
+      "description": "Create a new culturally-aware meal plan",
+      "url": "/meal-plan/create",
+      "icons": [
+        {
+          "src": "/assets/icons/meal-plan-96x96.png",
+          "sizes": "96x96"
+        }
+      ]
+    },
+    {
+      "name": "Budget Tracker",
+      "short_name": "Budget",
+      "description": "Track your grocery spending",
+      "url": "/budget",
+      "icons": [
+        {
+          "src": "/assets/icons/budget-96x96.png",
+          "sizes": "96x96"
+        }
+      ]
+    },
+    {
+      "name": "Recipe Search",
+      "short_name": "Recipes",
+      "description": "Search for cultural recipes",
+      "url": "/recipes",
+      "icons": [
+        {
+          "src": "/assets/icons/recipe-96x96.png",
+          "sizes": "96x96"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,10 @@
+{
+  "id": "remove-kroger-focus-perplexity",
+  "name": "Remove Kroger API & Focus on Perplexity Pricing",
+  "description": "Refactors code to remove Kroger API dependencies and consolidate pricing functionality around Perplexity integration",
+  "trigger": {
+    "type": "manual"
+  },
+  "prompt": "I need to refactor the PlateWise codebase to remove Kroger API integration and focus entirely on Perplexity-based pricing. Please:\n\n1. **Remove Kroger Dependencies**:\n   - Remove all Kroger API service files and references\n   - Clean up imports and dependencies related to Kroger\n   - Remove Kroger-specific components and hooks\n   - Update environment variables and configuration\n\n2. **Consolidate Perplexity Pricing**:\n   - Streamline the multiple Perplexity pricing services into a unified approach\n   - Keep the enhanced cultural pricing as the primary pricing method\n   - Remove redundant pricing panels and components\n   - Simplify the pricing API routes\n\n3. **Update Components**:\n   - Modify recipe components to use only Perplexity pricing\n   - Remove store selection and location-based features\n   - Update pricing displays to show Perplexity-sourced data\n   - Clean up debug components to focus on Perplexity testing\n\n4. **Clean Up Configuration**:\n   - Remove Kroger API keys and configuration\n   - Update API integration patterns documentation\n   - Simplify the pricing service architecture\n\nBefore making changes, show me:\n- List of files that will be removed or significantly modified\n- Summary of the new simplified pricing architecture\n- Any potential breaking changes or functionality that will be lost\n\nFocus on creating a cleaner, more maintainable codebase centered around Perplexity's cultural pricing capabilities.",
+  "autoApprove": false
+}

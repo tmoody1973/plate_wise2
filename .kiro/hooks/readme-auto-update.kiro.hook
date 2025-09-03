@@ -1,0 +1,24 @@
+{
+  "enabled": true,
+  "name": "README Auto-Update",
+  "description": "Automatically updates the README.md file when there are major changes to the project structure, configuration files, or key components to keep documentation current and organized",
+  "version": "1",
+  "when": {
+    "type": "fileEdited",
+    "patterns": [
+      "package.json",
+      "src/app/**/*.tsx",
+      "src/components/**/*.tsx",
+      "src/lib/**/*.ts",
+      "next.config.js",
+      "tailwind.config.js",
+      "tsconfig.json",
+      ".env.example",
+      "supabase-schema.sql"
+    ]
+  },
+  "then": {
+    "type": "askAgent",
+    "prompt": "Analyze the recent changes to the PlateWise project and update the README.md file accordingly. Focus on:\n\n1. **Project Structure Changes**: Update any sections describing the app architecture, new components, or reorganized directories\n2. **New Features**: Document any new functionality, API integrations, or user-facing features\n3. **Configuration Updates**: Reflect changes in build configuration, environment variables, or deployment settings\n4. **Dependencies**: Update installation instructions if new dependencies were added\n5. **Cultural Features**: Highlight any new cultural authenticity features or multi-language support\n6. **API Integrations**: Document new external service integrations (Kroger, Spoonacular, ElevenLabs, etc.)\n\nMaintain the existing README structure but ensure all information is current, accurate, and well-organized. Include proper setup instructions, feature descriptions, and any important development notes. Keep the tone professional yet accessible for both developers and users."
+  }
+}
