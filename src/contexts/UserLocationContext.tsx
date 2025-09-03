@@ -119,10 +119,10 @@ export function UserLocationProvider({ children }: UserLocationProviderProps) {
       try {
         const supabase = createClient();
         const { data: profile, error } = await supabase
-          .from('profiles')
+          .from('user_profiles')
           .select('location, preferences')
           .eq('id', user.id)
-          .single();
+          .maybeSingle();
 
         if (error) {
           console.warn('[Context] Profile not found or error fetching profile:', error);
@@ -138,23 +138,34 @@ export function UserLocationProvider({ children }: UserLocationProviderProps) {
           return;
         }
 
-        if (profile?.location) {
-          // Parse location string (e.g., "Atlanta, GA" or just "Atlanta")
-          const locationParts = profile.location.split(',').map((s: string) => s.trim());
-          const cityName = locationParts[0];
-          const state = locationParts[1] || '';
-          
-          // Set basic location info first
-          const newLocation = {
-            city: cityName,
-            state: state,
-            zipCode: '', // Will be filled by dynamic lookup
-            fullLocation: profile.location
-          };
-          setLocation(newLocation);
-          
-          // Fetch stores dynamically for this location
-          await fetchStoresForLocation(profile.location);
+        const loc = (profile as any)?.location;
+        if (loc) {
+          // Support both string and JSON location formats
+          if (typeof loc === 'string') {
+            const locationParts = loc.split(',').map((s: string) => s.trim());
+            const cityName = locationParts[0];
+            const state = locationParts[1] || '';
+            const newLocation = {
+              city: cityName,
+              state,
+              zipCode: '', // Will be filled by dynamic lookup
+              fullLocation: loc,
+            };
+            setLocation(newLocation);
+            await fetchStoresForLocation(loc);
+          } else if (typeof loc === 'object') {
+            const cityName = String(loc.city || 'Atlanta');
+            const state = String(loc.state || loc.region || 'GA');
+            const zip = String(loc.zipCode || loc.zip || '').trim();
+            const full = zip ? `${cityName}, ${state} ${zip}` : `${cityName}, ${state}`;
+            setLocation({ city: cityName, state, zipCode: zip, fullLocation: full });
+            await fetchStoresForLocation(full);
+          } else {
+            // Unexpected type; fall through to defaults
+            const defaultLocation = { city: 'Atlanta', state: 'GA', zipCode: '30309', fullLocation: 'Atlanta, GA' };
+            setLocation(defaultLocation);
+            await fetchStoresForLocation(defaultLocation.fullLocation);
+          }
         } else {
           // Default to Atlanta and fetch its stores
           const defaultLocation = {
