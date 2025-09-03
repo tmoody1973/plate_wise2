@@ -435,7 +435,17 @@ Return ONLY this exact JSON structure:
       cuisine: recipe.cuisine || 'International',
       culturalOrigin: Array.isArray(recipe.culturalOrigin) ? recipe.culturalOrigin : [recipe.cuisine || 'International'],
       ingredients,
-      instructions: (recipe.instructions || []).map((inst: any, index: number) => {
+      instructions: (() => {
+        // Handle missing or invalid instructions
+        if (!recipe.instructions || !Array.isArray(recipe.instructions) || recipe.instructions.length === 0) {
+          // Create a basic instruction if none exist
+          return [{
+            step: 1,
+            text: recipe.method || recipe.directions || 'Please refer to the ingredients list and prepare according to standard cooking methods.'
+          }];
+        }
+        
+        return recipe.instructions.map((inst: any, index: number) => {
         const instruction: RecipeInstruction = {
           step: inst.step || (index + 1),
           text: inst.text || inst.instruction || ''
@@ -492,7 +502,8 @@ Return ONLY this exact JSON structure:
         }
 
         return instruction;
-      }),
+      });
+      })(),
       nutritionalInfo: (() => {
         // Check for both 'nutritionalInfo' and 'nutrition' fields
         const nutritionData = recipe.nutritionalInfo || recipe.nutrition;
