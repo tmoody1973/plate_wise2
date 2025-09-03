@@ -515,7 +515,7 @@ const MILWAUKEE_STORE_ADDRESSES: Record<string, string> = {
 function getStateFromLocation(location: string, city: string): string {
   // Extract state from city if it contains state code
   const cityStateMatch = city.match(/,\s*([A-Z]{2})\b/)
-  if (cityStateMatch && cityStateMatch[1]) {
+  if (cityStateMatch?.[1]) {
     return cityStateMatch[1]
   }
   
