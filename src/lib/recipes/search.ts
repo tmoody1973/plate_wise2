@@ -341,6 +341,13 @@ function scrubStructuredOutput(raw: any, webMode: boolean): any {
   if (Array.isArray(raw.recipes)) {
     raw.recipes = raw.recipes.map((r: any) => {
       if (r && typeof r === 'object') {
+        // Coerce basic optional fields to valid types or remove
+        if (r.description != null && typeof r.description !== 'string') delete r.description
+        if (r.cuisine != null && typeof r.cuisine !== 'string') delete r.cuisine
+        if (r.difficulty != null && !['easy','medium','hard'].includes(String(r.difficulty))) delete r.difficulty
+        if (r.servings != null && typeof r.servings !== 'number') delete r.servings
+        if (r.total_time_minutes != null && typeof r.total_time_minutes !== 'number') delete r.total_time_minutes
+
         // Accept alternate ingredients shape and normalize
         if (r.ingredients && !Array.isArray(r.ingredients) && typeof r.ingredients === 'object') {
           const entries = Object.entries(r.ingredients as Record<string, any>)
@@ -349,9 +356,70 @@ function scrubStructuredOutput(raw: any, webMode: boolean): any {
             quantity: typeof qty === 'number' ? qty : (typeof qty === 'string' ? qty : undefined),
           }))
         }
+        // Normalize ingredient entries: handle {name, amount, unit, notes} -> {item, quantity, unit, notes}
+        if (Array.isArray(r.ingredients)) {
+          r.ingredients = r.ingredients
+            .map((ing: any) => {
+              if (!ing || typeof ing !== 'object') return null
+              const item = (ing.item ?? ing.name ?? ing.ingredient ?? '').toString().trim()
+              if (!item) return null
+              let quantity: any = ing.quantity ?? ing.amount ?? ing.qty
+              if (quantity === null || quantity === undefined || quantity === '') {
+                quantity = undefined
+              } else if (typeof quantity === 'string') {
+                const q = quantity.trim()
+                quantity = q.length ? q : undefined
+              } else if (typeof quantity !== 'number') {
+                // Unknown type, drop it
+                quantity = undefined
+              }
+              let unit: any = ing.unit ?? ing.units
+              if (unit === null || unit === undefined || unit === '') unit = undefined
+              else unit = String(unit)
+              let notes: any = ing.notes ?? ing.note
+              if (notes === null || notes === undefined || notes === '') notes = undefined
+              else notes = String(notes)
+              const out: any = { item }
+              if (quantity !== undefined) out.quantity = quantity
+              if (unit !== undefined) out.unit = unit
+              if (notes !== undefined) out.notes = notes
+              return out
+            })
+            .filter(Boolean)
+        }
         // Ensure instructions is an array of {step,text}
         if (Array.isArray(r.instructions) && r.instructions.length > 0 && typeof r.instructions[0] === 'string') {
           r.instructions = (r.instructions as string[]).map((t, i) => ({ step: i + 1, text: t }))
+        }
+        if (Array.isArray(r.instructions)) {
+          r.instructions = r.instructions.map((st: any, i: number) => {
+            const step = typeof st?.step === 'number' && isFinite(st.step) ? st.step : (i + 1)
+            let text = st?.text
+            if (text == null || typeof text !== 'string' || !text.trim()) text = `Step ${step}`
+            return { step, text }
+          })
+          if (!r.instructions.length) {
+            r.instructions = [{ step: 1, text: 'See source for steps' }]
+          }
+        } else {
+          // Ensure at least one instruction to satisfy schema
+          r.instructions = [{ step: 1, text: 'See source for steps' }]
+        }
+        // Sanitize nutrition numbers or remove invalid fields
+        if (r.nutrition && typeof r.nutrition === 'object') {
+          const n: any = {}
+          const putNum = (k: string, v: any, int = false) => {
+            if (v == null) return
+            const num = typeof v === 'number' ? v : parseFloat(String(v))
+            if (!isFinite(num)) return
+            n[k] = int ? Math.round(num) : num
+          }
+          putNum('calories', r.nutrition.calories, true)
+          putNum('protein_g', r.nutrition.protein_g)
+          putNum('fat_g', r.nutrition.fat_g)
+          putNum('carbs_g', r.nutrition.carbs_g)
+          if (Object.keys(n).length) r.nutrition = n
+          else delete r.nutrition
         }
         if (typeof r.image === 'string') {
           const img = r.image.trim()
