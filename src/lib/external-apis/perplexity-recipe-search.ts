@@ -224,8 +224,8 @@ Find exactly ${maxResults || 1} recipe(s).${filters}
 
 For instructions, include timing, temperatures, visual cues, and techniques directly in the text.
 
-Return ONLY valid JSON with this structure:
-{"recipes":[{"title":"","description":"","cuisine":"","culturalOrigin":[""],"ingredients":[{"name":"","amount":1,"unit":""}],"instructions":[{"step":1,"text":""}],"nutritionalInfo":{"calories":0,"protein_g":0,"fat_g":0,"carbs_g":0},"metadata":{"sourceUrl":"","imageUrl":"","servings":4,"totalTimeMinutes":30,"difficulty":"medium"},"tags":[""]}]}`;
+Return ONLY valid JSON with this exact structure - use numbers not null:
+{"recipes":[{"title":"Recipe Name","description":"Brief description","cuisine":"Cuisine Type","culturalOrigin":["Culture"],"ingredients":[{"name":"ingredient name","amount":1,"unit":"cup"}],"instructions":[{"step":1,"text":"detailed instruction text"}],"nutritionalInfo":{"calories":300,"protein_g":15,"fat_g":10,"carbs_g":45},"metadata":{"sourceUrl":"https://example.com","imageUrl":"https://image.url","servings":4,"totalTimeMinutes":30,"difficulty":"medium"},"tags":["tag1","tag2"]}]}`;
   }
 
   /**
@@ -252,6 +252,17 @@ Return ONLY valid JSON with this structure:
       const parsed = JSON.parse(cleanedContent);
       
       console.log('✅ Successfully parsed JSON, structure:', Object.keys(parsed));
+      
+      // Debug: Log nutrition field structure if present
+      if (parsed.recipes && parsed.recipes.length > 0) {
+        const firstRecipe = parsed.recipes[0];
+        if (firstRecipe.nutritionalInfo) {
+          console.log('🔬 Found nutritionalInfo:', Object.keys(firstRecipe.nutritionalInfo));
+        }
+        if (firstRecipe.nutrition) {
+          console.log('🔬 Found nutrition:', Object.keys(firstRecipe.nutrition));
+        }
+      }
       
       if (parsed.recipes && Array.isArray(parsed.recipes)) {
         console.log(`📦 Found ${parsed.recipes.length} recipes in standard format`);
@@ -533,18 +544,25 @@ Return ONLY valid JSON with this structure:
         if (!nutritionData) return undefined;
         
         // Helper to safely parse numeric values
-        const parseNumeric = (value: any): number => {
-          if (value === null || value === undefined) return 0;
+        const parseNumeric = (value: any, fieldName?: string): number => {
+          if (value === null || value === undefined) {
+            console.log(`⚠️ Null nutritional value for ${fieldName}, using 0`);
+            return 0;
+          }
           if (typeof value === 'number') return value;
           const parsed = parseFloat(value);
-          return isNaN(parsed) ? 0 : parsed;
+          if (isNaN(parsed)) {
+            console.log(`⚠️ Invalid nutritional value for ${fieldName}: "${value}", using 0`);
+            return 0;
+          }
+          return parsed;
         };
         
         return {
-          calories: parseNumeric(nutritionData.calories),
-          protein_g: parseNumeric(nutritionData.protein_g),
-          fat_g: parseNumeric(nutritionData.fat_g),
-          carbs_g: parseNumeric(nutritionData.carbs_g)
+          calories: parseNumeric(nutritionData.calories, 'calories'),
+          protein_g: parseNumeric(nutritionData.protein_g, 'protein_g'),
+          fat_g: parseNumeric(nutritionData.fat_g, 'fat_g'),
+          carbs_g: parseNumeric(nutritionData.carbs_g, 'carbs_g')
         };
       })(),
       metadata: {

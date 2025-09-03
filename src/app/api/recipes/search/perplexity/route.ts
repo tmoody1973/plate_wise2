@@ -86,10 +86,10 @@ export async function GET(request: NextRequest) {
           text: inst.text
         })),
         nutritional_info: recipe.nutritionalInfo ? {
-          calories: recipe.nutritionalInfo.calories,
-          protein_g: recipe.nutritionalInfo.protein_g,
-          fat_g: recipe.nutritionalInfo.fat_g,
-          carbs_g: recipe.nutritionalInfo.carbs_g
+          calories: recipe.nutritionalInfo.calories || 0,
+          protein_g: recipe.nutritionalInfo.protein_g || 0,
+          fat_g: recipe.nutritionalInfo.fat_g || 0,
+          carbs_g: recipe.nutritionalInfo.carbs_g || 0
         } : null,
         cost_analysis: null, // Will be populated by pricing API
         metadata: {
