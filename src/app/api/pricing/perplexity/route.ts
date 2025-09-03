@@ -109,6 +109,9 @@ type PricingData = {
   sourceUrl?: string
 }
 
+// Allow longer execution when pricing multiple ingredients
+export const maxDuration = 60
+
 const ingName = (ing: IngredientLike) => {
   if (typeof ing === 'string') return ing
   // Support both OpenAI format (item) and standard format (name)
@@ -1033,6 +1036,10 @@ export async function POST(request: NextRequest) {
       console.log('🌐 Making batch Perplexity API request for', ingredients.length, 'ingredients');
       console.log('🗺️  Location data:', { location, city, defaultStoreName, preferredStores });
       
+      // Add a conservative timeout to avoid platform timeouts
+      const controller = new AbortController()
+      const timeoutMs = process.env.NODE_ENV === 'development' ? 60000 : 25000
+      const timeoutId = setTimeout(() => controller.abort(), timeoutMs)
       const perplexityResponse = await fetch('https://api.perplexity.ai/chat/completions', {
         method: 'POST',
         headers: {
@@ -1051,11 +1058,13 @@ export async function POST(request: NextRequest) {
               content: prompt
             }
           ],
-          max_tokens: 2000, // Increased for multiple ingredients
+          max_tokens: 1500, // keep bounded for responsiveness
           temperature: 0.1,
           top_p: 0.9
-        })
+        }),
+        signal: controller.signal
       })
+      clearTimeout(timeoutId)
 
       console.log('📡 Perplexity API response:', perplexityResponse.status, perplexityResponse.statusText);
       
@@ -1170,6 +1179,11 @@ export async function POST(request: NextRequest) {
             // Add multiple store options and alternatives
             storeOptions: storeOptions.length > 0 ? storeOptions : undefined,
             alternatives: alternatives.length > 0 ? alternatives : undefined
+          }
+
+          // Also expose options under a generic key used by some UI helpers
+          if (storeOptions.length > 0) {
+            (result as any).options = storeOptions
           }
 
           results.push(result)
