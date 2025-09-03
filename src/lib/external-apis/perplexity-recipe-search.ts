@@ -103,6 +103,11 @@ class PerplexityRecipeSearchService {
     try {
       const prompt = this.buildRecipeSearchPrompt(request);
       
+      // Create timeout controller for 25 seconds (5 seconds buffer before Vercel timeout)
+      const controller = new AbortController();
+      const timeoutMs = process.env.NODE_ENV === 'development' ? 60000 : 25000; // 60s for dev, 25s for production
+      const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+      
       const response = await fetch(this.baseURL, {
         method: 'POST',
         headers: {
@@ -121,7 +126,7 @@ class PerplexityRecipeSearchService {
               content: prompt
             }
           ],
-          max_tokens: 3000,
+          max_tokens: 1500, // Optimized for faster response
           temperature: 0.1,
           return_citations: true,
           search_domain_filter: [
@@ -129,8 +134,11 @@ class PerplexityRecipeSearchService {
             'seriouseats.com', 'bonappetit.com', 'foodnetwork.com', 'tasteofhome.com',
             'delish.com', 'foodandwine.com'
           ]
-        })
+        }),
+        signal: controller.signal
       });
+
+      clearTimeout(timeoutId);
 
       if (!response.ok) {
         throw new Error(`Perplexity API error: ${response.status}`);
@@ -158,6 +166,16 @@ class PerplexityRecipeSearchService {
 
     } catch (error) {
       console.error('Perplexity recipe search error:', error);
+      
+      // Handle timeout specifically
+      if (error instanceof Error && error.name === 'AbortError') {
+        return {
+          recipes: [],
+          success: false,
+          error: 'Recipe search timed out. Please try with a simpler query or try again.',
+          sources: []
+        };
+      }
       
       return {
         recipes: [],
@@ -200,104 +218,14 @@ class PerplexityRecipeSearchService {
 
     return `${searchCriteria}
 
-Find ${maxResults || 3} high-quality recipes from reputable cooking websites.${filters}
+Find 1 high-quality recipe.${filters}
 
-For each recipe, provide:
-1. Complete ingredient list with specific amounts and units
-2. DETAILED step-by-step instructions with beginner-friendly guidance
-3. Nutritional information (if available)
-4. Cultural origin and cuisine type
-5. Cooking time and difficulty
-6. Source URL
+Return JSON with: title, description, cuisine, culturalOrigin, ingredients (name, amount, unit), instructions (step, text, timing, temperature), nutritionalInfo, metadata (sourceUrl, servings, totalTimeMinutes, difficulty), tags.
 
-CRITICAL REQUIREMENTS FOR INGREDIENTS:
-- Use "name" field for ingredients (not "item")
-- Include precise amounts as numbers (e.g., 2, not "2" as string)
-- Include proper units (cups, tablespoons, pounds, etc.)
-- Ensure all ingredients have amounts specified
-- If amount is unclear, estimate reasonably (e.g., "1 onion" = 1 each)
+JSON format:
+{"recipes":[{"title":"Recipe Name","description":"Brief description","cuisine":"Cuisine","culturalOrigin":["Culture"],"ingredients":[{"name":"ingredient","amount":1,"unit":"cup"}],"instructions":[{"step":1,"text":"Detailed instruction","timing":{"duration":5,"isActive":true},"temperature":{"value":350,"unit":"F","type":"stovetop"}}],"nutritionalInfo":{"calories":400,"protein_g":20,"fat_g":15,"carbs_g":30},"metadata":{"sourceUrl":"https://url","servings":4,"totalTimeMinutes":30,"difficulty":"medium"},"tags":["tag1"]}]}
 
-CRITICAL REQUIREMENTS FOR INSTRUCTIONS:
-- Provide detailed, beginner-friendly instructions
-- Include timing for each step (active cooking time)
-- Specify temperatures for cooking steps
-- List required equipment for each step
-- Include visual cues to know when step is complete
-- Add helpful tips and common mistake warnings
-- Explain cooking techniques (sauté, fold, whisk, etc.)
-- Mention which ingredients are used in each step
-
-Format response as JSON:
-{
-  "recipes": [
-    {
-      "title": "Recipe Name",
-      "description": "Brief description of the dish",
-      "cuisine": "Cuisine type",
-      "culturalOrigin": ["Culture 1", "Culture 2"],
-      "ingredients": [
-        {
-          "name": "ingredient name",
-          "amount": 2.5,
-          "unit": "cups",
-          "notes": "optional preparation notes"
-        }
-      ],
-      "instructions": [
-        {
-          "step": 1,
-          "title": "Prepare ingredients",
-          "text": "Heat 2 tablespoons olive oil in a large skillet over medium heat. Add diced onions and cook, stirring occasionally, until translucent and lightly golden.",
-          "timing": {
-            "duration": 5,
-            "isActive": true,
-            "description": "Stir occasionally while cooking"
-          },
-          "temperature": {
-            "value": 350,
-            "unit": "F",
-            "type": "stovetop"
-          },
-          "equipment": ["large skillet", "wooden spoon"],
-          "visualCues": ["translucent onions", "lightly golden edges", "sizzling sound"],
-          "tips": ["Don't rush - proper sautéing takes time", "If onions brown too quickly, lower the heat"],
-          "techniques": [{
-            "name": "sauté",
-            "description": "Cook quickly in a small amount of fat over relatively high heat, stirring frequently"
-          }],
-          "warnings": ["Don't let onions burn - they'll turn bitter"],
-          "ingredients": ["olive oil", "yellow onion"]
-        }
-      ],
-      "nutritionalInfo": {
-        "calories": 450,
-        "protein_g": 25,
-        "fat_g": 15,
-        "carbs_g": 35
-      },
-      "metadata": {
-        "sourceUrl": "https://example.com/recipe",
-        "servings": 4,
-        "totalTimeMinutes": 60,
-        "difficulty": "medium"
-      },
-      "tags": ["dinner", "healthy", "quick"]
-    }
-  ]
-}
-
-INSTRUCTION GUIDELINES:
-- For "title": Provide a short, descriptive title (e.g., "Sauté aromatics", "Prepare sauce")
-- For "timing": Include duration in minutes, specify if it's active cooking time
-- For "temperature": Always include unit (F or C) and where to apply (oven/stovetop/oil/water)
-- For "equipment": List specific tools needed for this step
-- For "visualCues": Describe what to look/listen/smell for when step is complete
-- For "tips": Provide helpful advice for beginners
-- For "techniques": Explain any cooking methods used
-- For "warnings": Mention safety concerns or common mistakes
-- For "ingredients": List which ingredients are used in this specific step
-
-Return ONLY the JSON, no additional text.`;
+Return ONLY JSON.`;
   }
 
   /**
