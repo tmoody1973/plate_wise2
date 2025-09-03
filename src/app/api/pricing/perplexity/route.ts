@@ -109,6 +109,11 @@ type PricingData = {
   sourceUrl?: string
 }
 
+// Run pricing on Edge to reduce cold starts and improve latency
+export const runtime = 'edge'
+export const preferredRegion = ['cle1']
+export const dynamic = 'force-dynamic'
+
 // Allow longer execution when pricing multiple ingredients
 export const maxDuration = 60
 
