@@ -533,15 +533,27 @@ Return ONLY the JSON, no additional text.`;
         return instruction;
       }),
       nutritionalInfo: recipe.nutritionalInfo ? {
-        calories: recipe.nutritionalInfo.calories || 0,
-        protein_g: recipe.nutritionalInfo.protein_g || 0,
-        fat_g: recipe.nutritionalInfo.fat_g || 0,
-        carbs_g: recipe.nutritionalInfo.carbs_g || 0
+        calories: typeof recipe.nutritionalInfo.calories === 'number' 
+          ? recipe.nutritionalInfo.calories 
+          : parseFloat(recipe.nutritionalInfo.calories) || 0,
+        protein_g: typeof recipe.nutritionalInfo.protein_g === 'number' 
+          ? recipe.nutritionalInfo.protein_g 
+          : parseFloat(recipe.nutritionalInfo.protein_g) || 0,
+        fat_g: typeof recipe.nutritionalInfo.fat_g === 'number' 
+          ? recipe.nutritionalInfo.fat_g 
+          : parseFloat(recipe.nutritionalInfo.fat_g) || 0,
+        carbs_g: typeof recipe.nutritionalInfo.carbs_g === 'number' 
+          ? recipe.nutritionalInfo.carbs_g 
+          : parseFloat(recipe.nutritionalInfo.carbs_g) || 0
       } : undefined,
       metadata: {
         sourceUrl: recipe.metadata?.sourceUrl || recipe.source || '',
-        servings: recipe.metadata?.servings || recipe.servings || 4,
-        totalTimeMinutes: recipe.metadata?.totalTimeMinutes || recipe.total_time_minutes || 30,
+        servings: typeof (recipe.metadata?.servings || recipe.servings) === 'number' 
+          ? (recipe.metadata?.servings || recipe.servings) 
+          : parseInt(recipe.metadata?.servings || recipe.servings) || 4,
+        totalTimeMinutes: typeof (recipe.metadata?.totalTimeMinutes || recipe.total_time_minutes) === 'number' 
+          ? (recipe.metadata?.totalTimeMinutes || recipe.total_time_minutes) 
+          : parseInt(recipe.metadata?.totalTimeMinutes || recipe.total_time_minutes) || 30,
         difficulty: recipe.metadata?.difficulty || recipe.difficulty || 'medium'
       },
       tags: Array.isArray(recipe.tags) ? recipe.tags : []
