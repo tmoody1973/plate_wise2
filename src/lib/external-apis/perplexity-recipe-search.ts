@@ -62,6 +62,7 @@ export interface PerplexityRecipe {
   };
   metadata: {
     sourceUrl: string;
+    imageUrl?: string;
     servings: number;
     totalTimeMinutes: number;
     difficulty: 'easy' | 'medium' | 'hard';
@@ -221,15 +222,10 @@ class PerplexityRecipeSearchService {
 
 Find exactly ${maxResults || 1} recipe(s).${filters}
 
-For each instruction step, include ALL details in the text field:
-- Exact timing (e.g., "cook for 5 minutes", "let rest for 10 minutes")  
-- Temperatures (e.g., "heat oil to 350°F", "preheat oven to 400°F")
-- Visual cues (e.g., "until golden brown", "until bubbling")
-- Techniques (e.g., "fold gently", "whisk vigorously")
-- Tips for beginners
+For instructions, include timing, temperatures, visual cues, and techniques directly in the text.
 
-Return ONLY this exact JSON structure:
-{"recipes":[{"title":"string","description":"string","cuisine":"string","culturalOrigin":["string"],"ingredients":[{"name":"string","amount":number,"unit":"string"}],"instructions":[{"step":number,"text":"detailed instruction with all timing, temperature, and technique details"}],"nutritionalInfo":{"calories":number,"protein_g":number,"fat_g":number,"carbs_g":number},"metadata":{"sourceUrl":"string","servings":number,"totalTimeMinutes":number,"difficulty":"easy|medium|hard"},"tags":["string"]}]}`;
+Return ONLY valid JSON with this structure:
+{"recipes":[{"title":"","description":"","cuisine":"","culturalOrigin":[""],"ingredients":[{"name":"","amount":1,"unit":""}],"instructions":[{"step":1,"text":""}],"nutritionalInfo":{"calories":0,"protein_g":0,"fat_g":0,"carbs_g":0},"metadata":{"sourceUrl":"","imageUrl":"","servings":4,"totalTimeMinutes":30,"difficulty":"medium"},"tags":[""]}]}`;
   }
 
   /**
@@ -259,13 +255,19 @@ Return ONLY this exact JSON structure:
       
       if (parsed.recipes && Array.isArray(parsed.recipes)) {
         console.log(`📦 Found ${parsed.recipes.length} recipes in standard format`);
-        return parsed.recipes.map((recipe: any) => this.normalizeRecipe(recipe));
+        // Filter out any non-object entries and normalize
+        return parsed.recipes
+          .filter((recipe: any) => typeof recipe === 'object' && recipe !== null)
+          .map((recipe: any) => this.normalizeRecipe(recipe));
       }
       
       // Check if the response IS the recipes array directly
       if (Array.isArray(parsed)) {
-        console.log(`📦 Response is direct array of ${parsed.length} recipes`);
-        return parsed.map((recipe: any) => this.normalizeRecipe(recipe));
+        console.log(`📦 Response is direct array of ${parsed.length} items`);
+        // Filter out any non-object entries
+        return parsed
+          .filter((recipe: any) => typeof recipe === 'object' && recipe !== null)
+          .map((recipe: any) => this.normalizeRecipe(recipe));
       }
       
       // Check for a single recipe object
@@ -413,6 +415,26 @@ Return ONLY this exact JSON structure:
    * Normalize recipe data to ensure consistency
    */
   private normalizeRecipe(recipe: any): PerplexityRecipe {
+    // Validate recipe is an object
+    if (!recipe || typeof recipe !== 'object') {
+      console.warn('⚠️ Invalid recipe data:', recipe);
+      return {
+        title: 'Invalid Recipe',
+        description: 'This recipe could not be parsed correctly',
+        cuisine: 'Unknown',
+        culturalOrigin: ['Unknown'],
+        ingredients: [],
+        instructions: [{step: 1, text: 'Recipe data was invalid'}],
+        nutritionalInfo: undefined,
+        metadata: {
+          sourceUrl: '',
+          servings: 4,
+          totalTimeMinutes: 30,
+          difficulty: 'medium'
+        },
+        tags: []
+      };
+    }
     const ingredients = (recipe.ingredients || []).map((ing: any, index: number) => {
       // Handle both 'amount' and 'quantity' fields from API response
       const amountValue = ing.amount || ing.quantity || 1;
@@ -527,6 +549,7 @@ Return ONLY this exact JSON structure:
       })(),
       metadata: {
         sourceUrl: recipe.metadata?.sourceUrl || recipe.source || '',
+        imageUrl: recipe.metadata?.imageUrl || recipe.image || recipe.imageUrl || undefined,
         servings: typeof (recipe.metadata?.servings || recipe.servings) === 'number' 
           ? (recipe.metadata?.servings || recipe.servings) 
           : parseInt(recipe.metadata?.servings || recipe.servings) || 4,

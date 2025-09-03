@@ -88,7 +88,7 @@ export async function GET(request: NextRequest) {
         cost_analysis: null, // Will be populated by pricing API
         metadata: {
           source_url: recipe.metadata.sourceUrl,
-          image_url: null, // Could be enhanced later
+          image_url: recipe.metadata.imageUrl || null,
           servings: recipe.metadata.servings,
           total_time_minutes: recipe.metadata.totalTimeMinutes,
           difficulty: recipe.metadata.difficulty
