@@ -224,7 +224,7 @@ Find exactly ${maxResults || 1} recipe(s).${filters}
 
 For instructions, include timing, temperatures, visual cues, and techniques directly in the text.
 
-Return ONLY valid JSON with this exact structure - use numbers not null:
+Return ONLY valid JSON with this exact structure - use 'amount' not 'quantity', use numbers not null:
 {"recipes":[{"title":"Recipe Name","description":"Brief description","cuisine":"Cuisine Type","culturalOrigin":["Culture"],"ingredients":[{"name":"ingredient name","amount":1,"unit":"cup"}],"instructions":[{"step":1,"text":"detailed instruction text"}],"nutritionalInfo":{"calories":300,"protein_g":15,"fat_g":10,"carbs_g":45},"metadata":{"sourceUrl":"https://example.com","imageUrl":"https://image.url","servings":4,"totalTimeMinutes":30,"difficulty":"medium"},"tags":["tag1","tag2"]}]}`;
   }
 
@@ -261,6 +261,15 @@ Return ONLY valid JSON with this exact structure - use numbers not null:
         }
         if (firstRecipe.nutrition) {
           console.log('🔬 Found nutrition:', Object.keys(firstRecipe.nutrition));
+        }
+        
+        // Debug: Log ingredient field structure
+        if (firstRecipe.ingredients && firstRecipe.ingredients.length > 0) {
+          const firstIngredient = firstRecipe.ingredients[0];
+          console.log('🔬 Ingredient fields:', Object.keys(firstIngredient));
+          if (firstIngredient.quantity !== undefined) {
+            console.log('⚠️ Found "quantity" field in ingredient - should be "amount"');
+          }
         }
       }
       
@@ -447,6 +456,11 @@ Return ONLY valid JSON with this exact structure - use numbers not null:
       };
     }
     const ingredients = (recipe.ingredients || []).map((ing: any, index: number) => {
+      // Debug log ingredient structure
+      if (ing.quantity !== undefined && ing.amount === undefined) {
+        console.log(`🔬 Ingredient ${index} has 'quantity' field:`, ing.quantity);
+      }
+      
       // Handle both 'amount' and 'quantity' fields from API response
       const amountValue = ing.amount || ing.quantity || 1;
       const parsedAmount = typeof amountValue === 'number' ? amountValue : (parseFloat(amountValue) || 1);
@@ -454,6 +468,7 @@ Return ONLY valid JSON with this exact structure - use numbers not null:
       // Handle both 'name' and 'item' fields - prefer 'name' but fall back to 'item'
       const ingredientName = ing.name || ing.item || `Unknown ingredient ${index + 1}`;
       
+      // Only return expected fields - no quantity field
       return {
         name: ingredientName,
         amount: parsedAmount,
