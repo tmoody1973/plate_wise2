@@ -953,6 +953,8 @@ async function sanitizeOption(opt: PricingData, location: string, city: string):
 export async function POST(request: NextRequest) {
   try {
     const raw = (await request.json()) as RequestBody
+    const urlObj = new URL(request.url)
+    const debug = urlObj.searchParams.get('debug') === '1'
     const ingredients = Array.isArray(raw?.ingredients) ? raw.ingredients : []
     const location = raw.location ?? '90210'
     const city = raw.city ?? ''
@@ -1068,7 +1070,11 @@ export async function POST(request: NextRequest) {
           ],
           max_tokens: 1200, // balanced for multi-ingredient without risking timeout
           temperature: 0.1,
-          top_p: 0.9
+          top_p: 0.9,
+          return_citations: false,
+          search_domain_filter: [
+            'walmart.com','target.com','kroger.com','publix.com','safeway.com','albertsons.com','aldi.us','costco.com','samsclub.com','wholefoodsmarket.com','traderjoes.com','meijer.com','heb.com','foodlion.com','giantfood.com','stopandshop.com','winndixie.com','ralphs.com','vons.com','fredmeyer.com','harristeeter.com','hy-vee.com','wegmans.com'
+          ]
         }),
         signal: controller.signal
       })
@@ -1077,9 +1083,12 @@ export async function POST(request: NextRequest) {
       console.log('📡 Perplexity API response:', perplexityResponse.status, perplexityResponse.statusText);
       
       if (!perplexityResponse.ok) {
-        const errorText = await perplexityResponse.text()
-        console.error('❌ Perplexity API error:', errorText)
-        throw new Error(`Perplexity API error: ${perplexityResponse.status}`)
+        const errorText = await perplexityResponse.text().catch(() => '')
+        console.error('❌ Perplexity API error:', perplexityResponse.status, errorText?.slice(0, 600))
+        if (debug) {
+          return NextResponse.json({ error: 'perplexity_upstream', status: perplexityResponse.status, body: errorText?.slice(0, 800) }, { status: 502 })
+        }
+        return NextResponse.json({ error: `perplexity_upstream_${perplexityResponse.status}` }, { status: 502 })
       }
 
       const perplexityData = (await perplexityResponse.json()) as unknown as PerplexityAPIResponse
