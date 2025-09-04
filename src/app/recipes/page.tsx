@@ -4,11 +4,18 @@ import React, { useState, useEffect } from 'react';
 import dynamic from 'next/dynamic';
 import { ProtectedRoute } from '@/components/auth/ProtectedRoute';
 import { DashboardLayout } from '@/components/layout/AppLayout';
-const RecipeList = dynamic(() => import('@/components/recipes/RecipeList').then(mod => mod.default || mod.RecipeList), { ssr: false });
-const RecipeForm = dynamic(() => import('@/components/recipes/RecipeForm').then(mod => mod.default || mod.RecipeForm), { ssr: false });
-const RecipeRecommendations = dynamic(() => import('@/components/recipes/RecipeRecommendations').then(mod => mod.default || mod.RecipeRecommendations), { ssr: false });
-const RecipeInputModal = dynamic(() => import('@/components/recipes/RecipeInputModal').then(mod => mod.default || mod.RecipeInputModal), { ssr: false });
-const OpenAIWebSearch = dynamic(() => import('@/components/recipes/OpenAIWebSearch').then(mod => mod.default || mod.OpenAIWebSearch), { ssr: false });
+import { RecipeList } from '@/components/recipes/RecipeList';
+import { RecipeForm } from '@/components/recipes/RecipeForm';
+import { RecipeRecommendations } from '@/components/recipes/RecipeRecommendations';
+// Keep dynamic imports for heavy/optional components
+const RecipeInputModal = dynamic(() => import('@/components/recipes/RecipeInputModal').then(mod => mod.default || mod.RecipeInputModal), { 
+  ssr: false,
+  loading: () => <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white"></div></div>
+});
+const OpenAIWebSearch = dynamic(() => import('@/components/recipes/OpenAIWebSearch').then(mod => mod.default || mod.OpenAIWebSearch), { 
+  ssr: false,
+  loading: () => <div className="flex items-center justify-center p-8"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-600"></div></div>
+});
 import { useAuthContext } from '@/contexts/AuthContext';
 import type { Recipe } from '@/types';
 import type { CreateRecipeInput } from '@/lib/recipes/recipe-database-service';
