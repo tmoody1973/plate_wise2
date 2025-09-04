@@ -121,14 +121,14 @@ class PerplexityRecipeSearchService {
           messages: [
             {
               role: 'system',
-              content: 'You are a recipe search assistant. Always return ONLY valid JSON in the exact format requested. Do not include any explanatory text, reasoning, or commentary outside the JSON.'
+              content: 'You are an expert culinary recipe assistant. Always return ONLY valid JSON in the exact format requested. Provide DETAILED, comprehensive step-by-step instructions that a home cook can easily follow. Include specific temperatures, times, techniques, visual cues, and helpful tips. Do not include any explanatory text outside the JSON.'
             },
             {
               role: 'user',
               content: prompt
             }
           ],
-          max_tokens: 1500, // Increased slightly for better recipe completeness
+          max_tokens: 2500, // Increased for detailed step-by-step instructions
           temperature: 0.2, // Low randomness for concise JSON
           return_citations: true,
           stream: false, // Keep non-streaming for now - streaming needs different parsing
@@ -242,7 +242,7 @@ Return ONLY a JSON object with this exact structure:
         {"name": "ingredient", "amount": 1, "unit": "cup"}
       ],
       "instructions": [
-        {"step": 1, "text": "detailed instruction"}
+        {"step": 1, "text": "comprehensive step-by-step instruction with specific details"}
       ],
       "nutritionalInfo": {
         "calories": 300,
@@ -257,7 +257,17 @@ Return ONLY a JSON object with this exact structure:
 IMPORTANT: 
 - Return ONLY the JSON, no other text
 - Use "amount" (not "quantity") as a number
-- Include timing and temperatures in instruction text`;
+- Instructions must be DETAILED and COMPREHENSIVE:
+  * Include specific techniques (e.g., "dice into 1/4-inch pieces", "sauté until golden brown")
+  * Specify exact temperatures (e.g., "350°F/175°C", "medium-high heat")
+  * Include precise timing (e.g., "cook for 8-10 minutes", "simmer for 20 minutes")
+  * Mention visual/sensory cues (e.g., "until edges are crispy", "until fragrant", "until internal temp reaches 165°F")
+  * Include preparation details (e.g., "pat dry with paper towels", "bring to room temperature")
+  * Specify cookware and tools needed (e.g., "12-inch skillet", "wooden spoon")
+  * Add helpful tips and warnings (e.g., "don't overcrowd the pan", "stir frequently to prevent burning")
+- Each instruction step should be complete enough for a beginner to follow
+- Break complex tasks into multiple detailed steps
+- Include prep work in early steps (mise en place)`;
   }
 
   /**
