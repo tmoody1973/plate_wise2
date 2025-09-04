@@ -135,7 +135,7 @@ class PerplexityRecipeSearchService {
             // Mainstream recipe sites
             'allrecipes.com', 'food.com', 'epicurious.com', 'simplyrecipes.com',
             'seriouseats.com', 'bonappetit.com', 'foodnetwork.com', 'tasteofhome.com',
-            'delish.com', 'foodandwine.com',
+            'delish.com', 'foodandwine.com', 'thekitchn.com',
             // African cuisine
             'africanbites.com', 'afrolems.com', 'allnigerianrecipes.com', 'immaculatebites.com',
             'ethiopianfood.guide', 'ethiopianrecipes.net', 'xsomali.com', 'somalifoodblog.com',

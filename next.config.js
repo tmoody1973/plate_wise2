@@ -45,6 +45,79 @@ const nextConfig = {
         port: '',
         pathname: '/storage/v1/object/public/**',
       },
+      // Food Network images
+      {
+        protocol: 'https',
+        hostname: 'food.fnr.sndimg.com',
+        port: '',
+        pathname: '/**',
+      },
+      {
+        protocol: 'https',
+        hostname: 'www.foodnetwork.com',
+        port: '',
+        pathname: '/**',
+      },
+      // The Kitchn images
+      {
+        protocol: 'https',
+        hostname: 'cdn.apartmenttherapy.info',
+        port: '',
+        pathname: '/**',
+      },
+      {
+        protocol: 'https',
+        hostname: 'www.thekitchn.com',
+        port: '',
+        pathname: '/**',
+      },
+      // AllRecipes images
+      {
+        protocol: 'https',
+        hostname: 'www.allrecipes.com',
+        port: '',
+        pathname: '/**',
+      },
+      {
+        protocol: 'https',
+        hostname: 'imagesvc.meredithcorp.io',
+        port: '',
+        pathname: '/**',
+      },
+      // Serious Eats images
+      {
+        protocol: 'https',
+        hostname: 'www.seriouseats.com',
+        port: '',
+        pathname: '/**',
+      },
+      // Bon Appetit images
+      {
+        protocol: 'https',
+        hostname: 'assets.bonappetit.com',
+        port: '',
+        pathname: '/**',
+      },
+      // Epicurious images
+      {
+        protocol: 'https',
+        hostname: 'assets.epicurious.com',
+        port: '',
+        pathname: '/**',
+      },
+      // Generic CDN patterns for recipe sites
+      {
+        protocol: 'https',
+        hostname: '*.cloudinary.com',
+        port: '',
+        pathname: '/**',
+      },
+      {
+        protocol: 'https',
+        hostname: '*.wp.com',
+        port: '',
+        pathname: '/**',
+      },
     ],
   },
   env: {
