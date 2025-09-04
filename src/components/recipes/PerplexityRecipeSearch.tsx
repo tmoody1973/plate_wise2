@@ -1,8 +1,8 @@
 "use client"
 
-import React, { useState } from 'react'
-import { Search, Clock, Users, ChefHat, Sparkles } from 'lucide-react'
-import { usePerplexityRecipeSearch } from '@/hooks/usePerplexityRecipeSearch'
+import React, { useState, useEffect } from 'react'
+import { Search, Clock, Users, ChefHat, Sparkles, Zap } from 'lucide-react'
+import { usePerplexityRecipeSearchStream } from '@/hooks/usePerplexityRecipeSearchStream'
 
 interface PerplexityRecipeSearchProps {
   onRecipesFound?: (recipes: any[]) => void;
@@ -31,9 +31,17 @@ export function PerplexityRecipeSearch({
   const [includeIngredients, setIncludeIngredients] = useState('')
   const [excludeIngredients, setExcludeIngredients] = useState('')
   const [maxResults, setMaxResults] = useState(3)
-  const searchMutation = usePerplexityRecipeSearch()
+  const { 
+    searchRecipes, 
+    result, 
+    isIdle, 
+    isConnecting, 
+    isStreaming, 
+    isComplete, 
+    isError 
+  } = usePerplexityRecipeSearchStream()
 
-  const handleSearch = () => {
+  const handleSearch = async () => {
     if (!query.trim()) return
 
     const searchFilters = {
@@ -50,16 +58,15 @@ export function PerplexityRecipeSearch({
       maxResults
     }
 
-    searchMutation.mutate(searchFilters, {
-      onSuccess: (data) => {
-        console.log('✅ Perplexity found', data.recipes.length, 'recipes')
-        onRecipesFound?.(data.recipes)
-      },
-      onError: (error) => {
-        console.error('❌ Recipe search error:', error)
-      }
-    })
+    await searchRecipes(searchFilters)
   }
+
+  // Call onRecipesFound when streaming completes or recipes update
+  useEffect(() => {
+    if (result.recipes.length > 0) {
+      onRecipesFound?.(result.recipes)
+    }
+  }, [result.recipes, onRecipesFound])
 
   const handleDietaryChange = (option: string, checked: boolean) => {
     if (checked) {
@@ -92,15 +99,18 @@ export function PerplexityRecipeSearch({
         </div>
         <button
           onClick={handleSearch}
-          disabled={searchMutation.isPending || !query.trim()}
+          disabled={(isConnecting || isStreaming) || !query.trim()}
           className="px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2"
         >
-          {searchMutation.isPending ? (
-            <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent" />
+          {isConnecting || isStreaming ? (
+            <>
+              <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent" />
+              <Zap className="w-3 h-3 animate-pulse" />
+            </>
           ) : (
             <Search className="w-4 h-4" />
           )}
-          <span>Search</span>
+          <span>{isStreaming ? 'Streaming...' : 'Search'}</span>
         </button>
       </div>
 
@@ -210,29 +220,55 @@ export function PerplexityRecipeSearch({
       )}
 
       {/* Status */}
-      {searchMutation.isPending && (
+      {isConnecting && (
         <div className="flex items-center space-x-2 text-orange-600">
           <div className="animate-spin rounded-full h-4 w-4 border-2 border-orange-600 border-t-transparent" />
-          <span className="text-sm">Searching recipes with AI...</span>
+          <span className="text-sm">Connecting to AI search...</span>
         </div>
       )}
 
-      {searchMutation.isError && (
+      {isStreaming && (
+        <div className="flex items-center space-x-3 text-blue-600 bg-blue-50 p-3 rounded-lg">
+          <div className="flex items-center space-x-2">
+            <Zap className="w-4 h-4 animate-pulse" />
+            <div className="animate-spin rounded-full h-4 w-4 border-2 border-blue-600 border-t-transparent" />
+          </div>
+          <div className="flex-1">
+            <div className="text-sm font-medium">Streaming recipes in real-time...</div>
+            <div className="text-xs mt-1">
+              Found {result.progress.recipeTitles} recipe titles, {result.progress.completeRecipes} complete recipes
+            </div>
+          </div>
+          {result.progress.completeRecipes > 0 && (
+            <div className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded-full">
+              {result.progress.completeRecipes} ready
+            </div>
+          )}
+        </div>
+      )}
+
+      {isError && (
         <div className="text-red-600 text-sm bg-red-50 p-3 rounded-lg">
-          <strong>Search failed:</strong> {searchMutation.error?.message}
+          <strong>Search failed:</strong> {result.error}
         </div>
       )}
 
-      {searchMutation.isSuccess && searchMutation.data ? (
+      {isComplete && result.recipes.length > 0 && (
         <div className="text-green-600 text-sm bg-green-50 p-3 rounded-lg">
-          ✅ Found {searchMutation.data.recipes.length} recipe(s)!
-          {searchMutation.data.meta.sources.length > 0 && (
+          ✅ Streaming complete! Found {result.recipes.length} recipe(s)!
+          {result.sources.length > 0 && (
             <span className="ml-2">
-              Sources: {searchMutation.data.meta.sources.length} websites
+              Sources: {result.sources.length} websites
             </span>
           )}
         </div>
-      ) : null}
+      )}
+
+      {isComplete && result.recipes.length === 0 && !isError && (
+        <div className="text-yellow-600 text-sm bg-yellow-50 p-3 rounded-lg">
+          No recipes found. Try adjusting your search terms or filters.
+        </div>
+      )}
     </div>
   )
 }

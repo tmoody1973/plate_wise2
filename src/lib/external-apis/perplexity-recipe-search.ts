@@ -89,7 +89,7 @@ class PerplexityRecipeSearchService {
   }
 
   /**
-   * Search for recipes using Perplexity AI
+   * Search for recipes using Perplexity AI with streaming support
    */
   async searchRecipes(request: PerplexityRecipeSearchRequest): Promise<PerplexityRecipeSearchResponse> {
     if (!this.apiKey) {
@@ -106,8 +106,8 @@ class PerplexityRecipeSearchService {
       
       // Create timeout controller with a conservative cap to avoid Vercel timeouts
       const controller = new AbortController();
-      // Reduced timeout for faster response - fail fast if slow
-      const timeoutMs = process.env.NODE_ENV === 'development' ? 60000 : 15000;
+      // Increase timeout for production to handle complex recipe searches
+      const timeoutMs = process.env.NODE_ENV === 'development' ? 60000 : 25000;
       const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
       
       const response = await fetch(this.baseURL, {
@@ -128,10 +128,10 @@ class PerplexityRecipeSearchService {
               content: prompt
             }
           ],
-          max_tokens: 2500, // Increased for detailed step-by-step instructions
-          temperature: 0.2, // Low randomness for concise JSON
+          max_tokens: 2000, // Reduced for faster response while maintaining detail
+          temperature: 0.1, // Very low randomness for concise, consistent JSON
           return_citations: true,
-          stream: false, // Keep non-streaming for now - streaming needs different parsing
+          stream: true, // Enable streaming for better UX and timeout prevention
           // No domain filter - let Perplexity use its SEO ranking to find best results
         }),
         signal: controller.signal
@@ -143,20 +143,65 @@ class PerplexityRecipeSearchService {
         throw new Error(`Perplexity API error: ${response.status}`);
       }
 
-      const result = await response.json();
-      const content = result.choices[0]?.message?.content;
+      // Handle streaming response
+      const reader = response.body?.getReader();
+      if (!reader) {
+        throw new Error('No response body available');
+      }
+
+      let fullContent = '';
+      let citations: string[] = [];
+      const decoder = new TextDecoder();
+
+      try {
+        while (true) {
+          const { done, value } = await reader.read();
+          
+          if (done) break;
+          
+          const chunk = decoder.decode(value, { stream: true });
+          const lines = chunk.split('\n');
+          
+          for (const line of lines) {
+            if (line.startsWith('data: ')) {
+              const data = line.slice(6);
+              
+              if (data === '[DONE]') {
+                break;
+              }
+              
+              try {
+                const parsed = JSON.parse(data);
+                const delta = parsed.choices?.[0]?.delta?.content;
+                
+                if (delta) {
+                  fullContent += delta;
+                }
+                
+                // Extract citations if available
+                if (parsed.citations && Array.isArray(parsed.citations)) {
+                  citations = [...citations, ...parsed.citations];
+                }
+              } catch (e) {
+                // Skip malformed JSON chunks
+                continue;
+              }
+            }
+          }
+        }
+      } finally {
+        reader.releaseLock();
+      }
       
-      console.log('🤖 Perplexity recipe search response length:', content?.length || 0);
-      console.log('🤖 Raw API response:', content);
-      console.log('🤖 First 500 chars:', content?.substring(0, 500));
+      console.log('🤖 Perplexity streaming response length:', fullContent.length);
+      console.log('🤖 First 500 chars:', fullContent.substring(0, 500));
       
-      if (!content) {
-        throw new Error('No content received from Perplexity API');
+      if (!fullContent) {
+        throw new Error('No content received from Perplexity streaming API');
       }
 
       // Parse the JSON response with citations
-      const citations = result.citations || [];
-      const recipes = this.parseRecipeSearchResponse(content, citations);
+      const recipes = this.parseRecipeSearchResponse(fullContent, citations);
       console.log('📊 Parsed recipes count:', recipes.length);
       console.log('📔 Citations found:', citations.length);
       
@@ -169,12 +214,26 @@ class PerplexityRecipeSearchService {
     } catch (error) {
       console.error('Perplexity recipe search error:', error);
       
-      // Handle timeout specifically
+      // Handle timeout and deployment errors specifically
       if (error instanceof Error && error.name === 'AbortError') {
         return {
           recipes: [],
           success: false,
           error: 'Recipe search timed out. Please try with a simpler query or try again.',
+          sources: []
+        };
+      }
+      
+      // Handle Vercel deployment timeout errors
+      if (error instanceof Error && (
+        error.message.includes('FUNCTION_INVOCATION_TIMEOUT') ||
+        error.message.includes('504') ||
+        error.message.includes('timeout')
+      )) {
+        return {
+          recipes: [],
+          success: false,
+          error: 'Recipe search took too long. Please try with a shorter, more specific query.',
           sources: []
         };
       }
@@ -185,6 +244,188 @@ class PerplexityRecipeSearchService {
         error: error instanceof Error ? error.message : 'Unknown error',
         sources: []
       };
+    }
+  }
+
+  /**
+   * Search for recipes using Perplexity AI with streaming for real-time UI updates
+   */
+  async *searchRecipesStream(request: PerplexityRecipeSearchRequest): AsyncGenerator<{
+    type: 'partial' | 'complete' | 'error';
+    content?: string;
+    recipes?: PerplexityRecipe[];
+    sources?: string[];
+    error?: string;
+  }> {
+    if (!this.apiKey) {
+      yield {
+        type: 'error',
+        error: 'Perplexity API key not configured'
+      };
+      return;
+    }
+
+    try {
+      const prompt = this.buildRecipeSearchPrompt(request);
+      
+      const controller = new AbortController();
+      const timeoutMs = process.env.NODE_ENV === 'development' ? 60000 : 25000;
+      const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+      
+      const response = await fetch(this.baseURL, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${this.apiKey}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          model: 'sonar',
+          messages: [
+            {
+              role: 'system',
+              content: 'You are an expert culinary recipe assistant. Always return ONLY valid JSON in the exact format requested. Provide DETAILED, comprehensive step-by-step instructions that a home cook can easily follow. Include specific temperatures, times, techniques, visual cues, and helpful tips. Do not include any explanatory text outside the JSON.'
+            },
+            {
+              role: 'user',
+              content: prompt
+            }
+          ],
+          max_tokens: 2000,
+          temperature: 0.1,
+          return_citations: true,
+          stream: true,
+        }),
+        signal: controller.signal
+      });
+
+      clearTimeout(timeoutId);
+
+      if (!response.ok) {
+        yield {
+          type: 'error',
+          error: `Perplexity API error: ${response.status}`
+        };
+        return;
+      }
+
+      const reader = response.body?.getReader();
+      if (!reader) {
+        yield {
+          type: 'error',
+          error: 'No response body available'
+        };
+        return;
+      }
+
+      let fullContent = '';
+      let citations: string[] = [];
+      const decoder = new TextDecoder();
+
+      try {
+        while (true) {
+          const { done, value } = await reader.read();
+          
+          if (done) break;
+          
+          const chunk = decoder.decode(value, { stream: true });
+          const lines = chunk.split('\n');
+          
+          for (const line of lines) {
+            if (line.startsWith('data: ')) {
+              const data = line.slice(6);
+              
+              if (data === '[DONE]') {
+                break;
+              }
+              
+              try {
+                const parsed = JSON.parse(data);
+                const delta = parsed.choices?.[0]?.delta?.content;
+                
+                if (delta) {
+                  fullContent += delta;
+                  
+                  // Try to parse partial recipes for progressive loading
+                  const partialRecipes = this.parsePartialRecipes(fullContent);
+                  const recipeCount = this.getProgressiveRecipeCount(fullContent);
+                  
+                  // Only yield updates when we have new recipes or significant content changes
+                  const shouldYield = partialRecipes.length > 0 || fullContent.length % 500 === 0;
+                  
+                  if (shouldYield) {
+                    // Yield partial content with progressive recipe updates
+                    yield {
+                      type: 'partial',
+                      content: fullContent,
+                      recipes: partialRecipes.length > 0 ? partialRecipes : undefined
+                    };
+                    
+                    // Log progress for debugging
+                    if (recipeCount > 0) {
+                      console.log(`📊 Progressive parsing found ${recipeCount} recipe titles, ${partialRecipes.length} complete recipes`);
+                    }
+                  }
+                }
+                
+                if (parsed.citations && Array.isArray(parsed.citations)) {
+                  citations = [...citations, ...parsed.citations];
+                }
+              } catch (e) {
+                continue;
+              }
+            }
+          }
+        }
+      } finally {
+        reader.releaseLock();
+      }
+      
+      if (!fullContent) {
+        yield {
+          type: 'error',
+          error: 'No content received from Perplexity streaming API'
+        };
+        return;
+      }
+
+      // Parse final result
+      try {
+        const recipes = this.parseRecipeSearchResponse(fullContent, citations);
+        yield {
+          type: 'complete',
+          recipes,
+          sources: citations
+        };
+      } catch (parseError) {
+        yield {
+          type: 'error',
+          error: parseError instanceof Error ? parseError.message : 'Failed to parse recipes'
+        };
+      }
+
+    } catch (error) {
+      console.error('Perplexity streaming error:', error);
+      
+      if (error instanceof Error && error.name === 'AbortError') {
+        yield {
+          type: 'error',
+          error: 'Recipe search timed out. Please try with a simpler query.'
+        };
+      } else if (error instanceof Error && (
+        error.message.includes('FUNCTION_INVOCATION_TIMEOUT') ||
+        error.message.includes('504') ||
+        error.message.includes('timeout')
+      )) {
+        yield {
+          type: 'error',
+          error: 'Recipe search took too long. Please try with a shorter, more specific query.'
+        };
+      } else {
+        yield {
+          type: 'error',
+          error: error instanceof Error ? error.message : 'Unknown error'
+        };
+      }
     }
   }
 
@@ -419,7 +660,7 @@ IMPORTANT:
   
   private tryExtractRecipesArray(content: string, citations: string[] = []): PerplexityRecipe[] {
     // Try to extract just the recipes array if the outer structure is broken
-    const recipesMatch = content.match(/"recipes"\s*:\s*\[(.*?)\]/s);
+    const recipesMatch = content.match(/"recipes"\s*:\s*\[([\s\S]*?)\]/);
     if (recipesMatch) {
       const recipesArrayContent = `[${recipesMatch[1]}]`;
       const fixedArray = this.fixCommonJSONIssues(recipesArrayContent);
@@ -636,6 +877,141 @@ IMPORTANT:
       },
       tags: Array.isArray(recipe.tags) ? recipe.tags : []
     };
+  }
+
+  /**
+   * Parse partial JSON content to extract completed recipes as they stream
+   */
+  private parsePartialRecipes(content: string): PerplexityRecipe[] {
+    try {
+      console.log('🔍 Parsing partial content length:', content.length);
+      
+      // First, try to extract from a complete recipes array structure
+      const recipesArrayMatch = content.match(/"recipes"\s*:\s*\[([\s\S]*?)\]/);
+      if (recipesArrayMatch && recipesArrayMatch[1]) {
+        const arrayContent = recipesArrayMatch[1];
+        console.log('📦 Found recipes array content length:', arrayContent.length);
+        
+        // Look for complete recipe objects within the array
+        const completeRecipes = this.extractCompleteRecipeObjects(arrayContent);
+        if (completeRecipes.length > 0) {
+          console.log('✅ Extracted', completeRecipes.length, 'complete recipes from array');
+          return completeRecipes;
+        }
+      }
+      
+      // Fallback: Look for standalone recipe objects anywhere in the content
+      const standaloneRecipes = this.extractCompleteRecipeObjects(content);
+      console.log('🔍 Found', standaloneRecipes.length, 'standalone recipes');
+      
+      return standaloneRecipes;
+    } catch (error) {
+      console.log('❌ Failed to parse partial recipes:', error);
+      return [];
+    }
+  }
+
+  /**
+   * Extract complete recipe objects from JSON content
+   */
+  private extractCompleteRecipeObjects(content: string): PerplexityRecipe[] {
+    const partialRecipes: PerplexityRecipe[] = [];
+    
+    // Look for recipe objects that have at least title, ingredients, and instructions
+    const recipePattern = /\{\s*"title"\s*:\s*"[^"]*"[\s\S]*?\}/g;
+    const recipeMatches = content.match(recipePattern);
+    
+    if (!recipeMatches) {
+      return [];
+    }
+
+    console.log('🔍 Found', recipeMatches.length, 'potential recipe objects');
+    
+    for (let i = 0; i < recipeMatches.length; i++) {
+      const match = recipeMatches[i];
+      
+      if (!match) continue;
+      
+      try {
+        // Check if this recipe has essential fields before parsing
+        const hasIngredients = /"ingredients"\s*:\s*\[/.test(match);
+        const hasInstructions = /"instructions"\s*:\s*\[/.test(match);
+        
+        if (!hasIngredients || !hasInstructions) {
+          console.log(`⏭️ Recipe ${i + 1} incomplete - missing ingredients:${!hasIngredients} or instructions:${!hasInstructions}`);
+          continue;
+        }
+        
+        // Try to balance braces to get a complete JSON object
+        const balancedMatch = this.balanceJsonObject(match);
+        const cleanMatch = this.fixCommonJSONIssues(balancedMatch);
+        
+        console.log(`🔧 Attempting to parse recipe ${i + 1}:`, cleanMatch.substring(0, 100) + '...');
+        
+        const recipe = JSON.parse(cleanMatch);
+        
+        // Validate essential fields
+        if (recipe.title && recipe.ingredients && recipe.instructions && 
+            Array.isArray(recipe.ingredients) && Array.isArray(recipe.instructions)) {
+          
+          console.log(`✅ Successfully parsed recipe ${i + 1}:`, recipe.title);
+          partialRecipes.push(this.normalizeRecipe(recipe, ''));
+        } else {
+          console.log(`⚠️ Recipe ${i + 1} missing essential fields:`, {
+            title: !!recipe.title,
+            ingredients: Array.isArray(recipe.ingredients),
+            instructions: Array.isArray(recipe.instructions)
+          });
+        }
+      } catch (e) {
+        console.log(`❌ Failed to parse recipe ${i + 1}:`, e instanceof Error ? e.message : e);
+        continue;
+      }
+    }
+    
+    return partialRecipes;
+  }
+
+  /**
+   * Balance JSON object braces to ensure completeness
+   */
+  private balanceJsonObject(jsonString: string): string {
+    let braceCount = 0;
+    let lastValidIndex = -1;
+    
+    for (let i = 0; i < jsonString.length; i++) {
+      const char = jsonString[i];
+      
+      if (char === '{') {
+        braceCount++;
+      } else if (char === '}') {
+        braceCount--;
+        if (braceCount === 0) {
+          lastValidIndex = i;
+        }
+      }
+    }
+    
+    // If braces are balanced, return as is
+    if (braceCount === 0 && lastValidIndex >= 0) {
+      return jsonString.substring(0, lastValidIndex + 1);
+    }
+    
+    // If unbalanced, try to close the object
+    if (braceCount > 0) {
+      return jsonString + '}'.repeat(braceCount);
+    }
+    
+    return jsonString;
+  }
+
+  /**
+   * Extract progressive recipe count from partial content
+   */
+  private getProgressiveRecipeCount(content: string): number {
+    // Count recipe objects that appear to be complete or near-complete
+    const titleMatches = content.match(/"title"\s*:\s*"[^"]*"/g);
+    return titleMatches ? titleMatches.length : 0;
   }
 
   /**

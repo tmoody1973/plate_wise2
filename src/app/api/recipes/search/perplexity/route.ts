@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { perplexityRecipeSearchService } from '@/lib/external-apis/perplexity-recipe-search'
 
-// Increase timeout for this specific API route
-export const maxDuration = 60;
+// Increase timeout for this specific API route to handle complex searches
+export const maxDuration = 30;
 // Run on Edge to reduce cold starts and allow ~30s runtime on Hobby/Pro
 export const runtime = 'edge';
 // Prefer Cleveland region to match error context and reduce latency

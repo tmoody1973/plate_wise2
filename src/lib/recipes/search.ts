@@ -304,6 +304,11 @@ function wrapToResponse(raw: any, filters: RecipeSearchFilters): any {
 
   // If model returned an object, ensure meta and used_filters are present
   if (raw && typeof raw === 'object') {
+    // CRITICAL: Ensure recipes field exists to match required schema
+    if (!Array.isArray(raw.recipes)) {
+      raw.recipes = []
+    }
+    
     if (!raw.meta || typeof raw.meta !== 'object') {
       raw.meta = {}
     }
@@ -330,6 +335,23 @@ function wrapToResponse(raw: any, filters: RecipeSearchFilters): any {
         excludeIngredients: filters.excludeIngredients,
         maxResults: filters.maxResults,
         excludeSources: filters.excludeSources,
+      }
+    }
+  } else {
+    // If raw is not an object or array, create default structure
+    return {
+      recipes: [],
+      meta: {
+        has_more: false,
+        sources: [],
+        used_filters: {
+          query: filters.query,
+          country: filters.country,
+          includeIngredients: filters.includeIngredients,
+          excludeIngredients: filters.excludeIngredients,
+          maxResults: filters.maxResults,
+          excludeSources: filters.excludeSources,
+        }
       }
     }
   }
