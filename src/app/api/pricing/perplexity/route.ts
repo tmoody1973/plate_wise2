@@ -3,6 +3,8 @@ import { buildPerplexityPrompt } from '@/lib/pricing/perplexity-prompt'
 import { createClient } from '@/lib/supabase/server'
 import { normalizeUnit, parsePackSize, estimateIngredientCost, convert } from '@/utils/units'
 import { estimateIngredientCost as heuristicCost } from '@/lib/recipes/cost-estimator'
+import { pricingCacheService } from '@/lib/pricing/pricing-cache-service'
+import { pricingCircuitBreakers } from '@/lib/pricing/circuit-breaker'
 import type { Ingredient } from '@/types'
 // Avoid static import of Google Places service (constructor throws without API key).
 // We'll lazy-load it inside functions when GOOGLE_PLACES_API_KEY is present.
@@ -1048,11 +1050,56 @@ export async function POST(request: NextRequest) {
         unit: ingUnit(ingredient) ?? 'unit'
       }))
 
-      // If too many ingredients, process in smaller batches to avoid timeouts
+      // Check cache first for ultra-fast response
+      const ingredientNames = ingredientList.map(ing => ing.name)
+      const { cached, missing } = await pricingCacheService.getCachedPricing(ingredientNames, location)
+      
+      console.log(`💾 Cache results: ${cached.length} cached, ${missing.length} missing`)
+      
+      // Convert cached data to results format
+      for (const cachedItem of cached) {
+        const originalIngredient = ingredients.find(ing => 
+          ingName(ing).toLowerCase() === cachedItem.ingredient_name.toLowerCase()
+        )
+        if (originalIngredient) {
+          results.push({
+            id: results.length + 1,
+            original: ingName(originalIngredient),
+            matched: cachedItem.product_name,
+            estimatedCost: cachedItem.portion_cost,
+            portionCost: cachedItem.portion_cost,
+            packagePrice: cachedItem.package_price,
+            confidence: cachedItem.confidence,
+            needsReview: cachedItem.confidence < 0.7,
+            packages: 1,
+            storeName: cachedItem.store_name,
+            storeType: cachedItem.store_type,
+            packageSize: cachedItem.package_size
+          })
+        }
+      }
+      
+      // If all ingredients are cached, return immediately
+      if (missing.length === 0) {
+        console.log('⚡ All ingredients cached - returning immediately')
+        return NextResponse.json({
+          results,
+          totalEstimated: results.reduce((sum, item) => sum + (item.portionCost || 0), 0),
+          source: 'cache',
+          cacheHit: true
+        })
+      }
+      
+      // Filter to only process missing ingredients
+      const missingIngredients = ingredients.filter(ing => 
+        missing.includes(ingName(ing))
+      )
+
+      // If too many missing ingredients, process in smaller batches to avoid timeouts
       const BATCH_SIZE = 4
-      if (ingredientList.length > BATCH_SIZE) {
-        for (let start = 0; start < ingredients.length; start += BATCH_SIZE) {
-          const batch = ingredients.slice(start, start + BATCH_SIZE)
+      if (missingIngredients.length > BATCH_SIZE) {
+        for (let start = 0; start < missingIngredients.length; start += BATCH_SIZE) {
+          const batch = missingIngredients.slice(start, start + BATCH_SIZE)
           const batchList = batch.map(ing => ({
             name: ingName(ing),
             amount: ingAmount(ing) ?? 1,
@@ -1075,7 +1122,9 @@ export async function POST(request: NextRequest) {
           
           let resp: Response | null = null
           try {
-            resp = await fetch('https://api.perplexity.ai/chat/completions', {
+            // Use circuit breaker to prevent cascading failures
+            resp = await pricingCircuitBreakers.perplexity.execute(async () => {
+              return await fetch('https://api.perplexity.ai/chat/completions', {
             method: 'POST',
             headers: {
               'Authorization': `Bearer ${perplexityApiKey}`,
@@ -1129,6 +1178,7 @@ export async function POST(request: NextRequest) {
               }
             }),
             signal: controller.signal
+              })
             })
             clearTimeout(timeoutId)
           } catch (error: any) {

@@ -44,57 +44,22 @@ ${opts.ingredients.map((ing, i) => `- { "name": "${ing.name}", "amount": ${ing.a
 
   return `${ingredientSection}
 
-Cultural context (for naming only): ${culturalContext}
-Preferred default store (if present): ${defaultStoreName}
-Preferred stores (priority order if available): ${preferredStores.join(', ')}
+Find current grocery prices at major chains in ${city}.
 
-STRICT STORE POLICY:
-- ONLY use these major chains (and only if they have locations in ${city}): ${majorChains.join(', ')}
-- Do NOT use independent, specialty, or ethnic-only markets. Ignore H Mart, international markets, and small independents.
-- Do NOT invent chains or locations. If a chain is not in ${city}, omit it.
+Return JSON array with one object per ingredient:
+[{
+  "ingredient": "exact ingredient name",
+  "storeName": "major chain name", 
+  "productName": "specific product",
+  "packageSize": "size with unit",
+  "packagePrice": 0.00,
+  "portionCost": 0.00,
+  "storeType": "mainstream"
+}]
 
-PRICING RULES:
-- Compute portionCost for the recipe's amount/unit from the packageSize and packagePrice (e.g., tbsp↔ml, lb↔g). Prefer realistic sizes; if adjusting, reflect in productName.
-- Label unitPrice clearly (e.g., "$3.99/lb", "$0.59/oz", "$0.15/tbsp").
-- ${compactNote}
-- All store addresses must be strings appropriate to ${city} (accept known city-level location strings when a precise street is not available).
-- If exact brand/size is unavailable, pick a close chain-brand alternative and note it in productName.
-
-OUTPUT FORMAT (JSON ARRAY ONLY — no prose):
-[
-  {
-    "ingredient": "string",
-    "storeName": "string",
-    "productName": "string",
-    "packageSize": "string",
-    "packagePrice": 0,
-    "unitPrice": "string",
-    "portionCost": 0,
-    "storeType": "mainstream",
-    "storeAddress": "string",
-    "sourceUrl": null,
-    "options": [
-      {
-        "storeName": "string",
-        "productName": "string",
-        "packageSize": "string",
-        "packagePrice": 0,
-        "unitPrice": "string",
-        "portionCost": 0,
-        "storeType": "mainstream",
-        "storeAddress": "string",
-        "sourceUrl": null
-      }
-    ]
-  }
-]
-
-CRITICAL:
-- Return EXACTLY ONE top-level object per requested ingredient (the best chain option)${opts.compact ? '' : ' plus 2–5 chain alternatives in "options"'}.
-- Each object MUST have a DIFFERENT ingredient name matching the requested ingredients exactly.
-- Each object MUST have a DIFFERENT productName appropriate for that specific ingredient.
-- Do NOT reuse the same productName or pricing data across different ingredients.
-- ONLY use major chains present in ${city}. Provide realistic prices and addresses.
-- Return ONLY the JSON array. No markdown or extra text.
-- ENSURE the array has the same number of objects as requested ingredients, in the same order.`
+Requirements:
+- Use major chains only (Walmart, Target, Kroger, Publix, etc.)
+- Different productName for each ingredient
+- Calculate portionCost from packagePrice and recipe amount
+- Return ONLY JSON array, no other text`
 }
