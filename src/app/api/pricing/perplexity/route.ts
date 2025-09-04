@@ -116,7 +116,7 @@ export const preferredRegion = ['cle1']
 export const dynamic = 'force-dynamic'
 
 // Allow longer execution when pricing multiple ingredients
-export const maxDuration = 60
+export const maxDuration = 10
 
 const ingName = (ing: IngredientLike) => {
   if (typeof ing === 'string') return ing
@@ -1048,7 +1048,7 @@ export async function POST(request: NextRequest) {
       }))
 
       // If too many ingredients, process in smaller batches to avoid timeouts
-      const BATCH_SIZE = 6
+      const BATCH_SIZE = 3
       if (ingredientList.length > BATCH_SIZE) {
         for (let start = 0; start < ingredients.length; start += BATCH_SIZE) {
           const batch = ingredients.slice(start, start + BATCH_SIZE)
@@ -1069,7 +1069,7 @@ export async function POST(request: NextRequest) {
           })
 
           const controller = new AbortController()
-          const timeoutMs = process.env.NODE_ENV === 'development' ? 60000 : 45000
+          const timeoutMs = process.env.NODE_ENV === 'development' ? 60000 : 8000
           const timeoutId = setTimeout(() => controller.abort(), timeoutMs)
           const resp = await fetch('https://api.perplexity.ai/chat/completions', {
             method: 'POST',
@@ -1083,7 +1083,7 @@ export async function POST(request: NextRequest) {
                 { role: 'system', content: 'You are a grocery pricing assistant. Return ONLY a valid JSON array with the requested fields. No extra text.' },
                 { role: 'user', content: batchPrompt }
               ],
-              max_tokens: 700,
+              max_tokens: 400,
               temperature: 0.1,
               top_p: 0.9,
               return_citations: false,
@@ -1175,7 +1175,7 @@ export async function POST(request: NextRequest) {
       
       // Add a conservative timeout to avoid platform timeouts
       const controller = new AbortController()
-      const timeoutMs = process.env.NODE_ENV === 'development' ? 60000 : 45000
+      const timeoutMs = process.env.NODE_ENV === 'development' ? 60000 : 8000
       const timeoutId = setTimeout(() => controller.abort(), timeoutMs)
       const perplexityResponse = await fetch('https://api.perplexity.ai/chat/completions', {
         method: 'POST',
@@ -1195,7 +1195,7 @@ export async function POST(request: NextRequest) {
               content: prompt
             }
           ],
-          max_tokens: 900, // compact mode; reduce tokens to avoid timeouts
+          max_tokens: 400, // compact mode; reduce tokens to avoid timeouts
           temperature: 0.1,
           top_p: 0.9,
           return_citations: false,
