@@ -340,6 +340,8 @@ function scrubStructuredOutput(raw: any, webMode: boolean): any {
   if (!raw || typeof raw !== 'object') return raw
   if (Array.isArray(raw.recipes)) {
     raw.recipes = raw.recipes.map((r: any) => {
+      // Skip non-object entries (strings, nulls, etc.) that the AI sometimes returns
+      if (!r || typeof r !== 'object') return null
       if (r && typeof r === 'object') {
         // Coerce basic optional fields to valid types or remove
         if (r.description != null && typeof r.description !== 'string') delete r.description
@@ -494,15 +496,13 @@ export async function searchRecipes(
     // On timeout, retry once with fast settings
     if (msg.toLowerCase().includes('timed out') || msg.toLowerCase().includes('timeout')) {
       const fastFilters = { ...filters, maxResults: 5 }
-    const json = await callOpenAIStructured(fastFilters, { maxOutputTokens: 2000, useWebSearch: true })
-      {
-        let data = validateOutput(json)
-        if ((data.recipes?.length ?? 0) === 0 && (data.meta?.sources?.length ?? 0) > 0) {
-          const hydrated = await hydrateFromSources(data, filters)
-          if (hydrated) data = hydrated
-        }
-        return maybeEnrichMissingImages(data, filters)
+      const json = await callOpenAIStructured(fastFilters, { maxOutputTokens: 2000, useWebSearch: true })
+      let data = validateOutput(json)
+      if ((data.recipes?.length ?? 0) === 0 && (data.meta?.sources?.length ?? 0) > 0) {
+        const hydrated = await hydrateFromSources(data, filters)
+        if (hydrated) data = hydrated
       }
+      return maybeEnrichMissingImages(data, filters)
     }
     // If model returned empty recipes (schema minItems violation), retry with fast model-only generation
     if (msg.includes('must contain at least 1 element')) {
@@ -523,14 +523,12 @@ export async function searchRecipes(
     if (retryMax === currentMax) throw err
     const retryFilters = { ...filters, maxResults: retryMax }
     const json = await callOpenAIStructured(retryFilters)
-    {
-      let data = validateOutput(json)
-      if ((data.recipes?.length ?? 0) === 0 && (data.meta?.sources?.length ?? 0) > 0) {
-        const hydrated = await hydrateFromSources(data, filters)
-        if (hydrated) data = hydrated
-      }
-      return maybeEnrichMissingImages(data, filters)
+    let data = validateOutput(json)
+    if ((data.recipes?.length ?? 0) === 0 && (data.meta?.sources?.length ?? 0) > 0) {
+      const hydrated = await hydrateFromSources(data, filters)
+      if (hydrated) data = hydrated
     }
+    return maybeEnrichMissingImages(data, filters)
   }
 }
 

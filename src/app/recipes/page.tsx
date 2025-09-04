@@ -17,8 +17,7 @@ import { useToast } from '@/components/ui/toast';
 export default function RecipesPage() {
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [showInputModal, setShowInputModal] = useState(false);
-  const [showSpoonacularSearch, setShowSpoonacularSearch] = useState(false);
-  // Simplify discover view to a single AI web search (OpenAI)
+  const [showDiscoverSearch, setShowDiscoverSearch] = useState(false);
   const [editingRecipe, setEditingRecipe] = useState<Recipe | null>(null);
   const [parsedRecipe, setParsedRecipe] = useState<CreateRecipeInput | null>(null);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
@@ -105,12 +104,12 @@ export default function RecipesPage() {
             onSave={handleSaveRecipe}
             onCancel={handleCancelForm}
           />
-        ) : showSpoonacularSearch ? (
+        ) : showDiscoverSearch ? (
           <div className="space-y-6">
             <div className="flex items-center justify-between">
               <h1 className="text-3xl font-bold text-gray-900">Discover Recipes</h1>
               <button
-                onClick={() => setShowSpoonacularSearch(false)}
+                onClick={() => setShowDiscoverSearch(false)}
                 className="px-4 py-2 text-gray-600 hover:text-gray-800 border border-gray-300 rounded-lg transition-colors"
               >
                 Back to My Recipes
@@ -123,41 +122,24 @@ export default function RecipesPage() {
           <div className="space-y-8">
             <RecipeRecommendations className="mb-8" />
             
-            {/* Recipe Source Tabs */}
+            {/* Header with Discover Button */}
             <div className="flex items-center justify-between">
-              <div className="flex space-x-1 bg-gray-100 rounded-lg p-1">
+              <h1 className="text-3xl font-bold text-gray-900">My Recipes</h1>
+              <div className="flex items-center space-x-3">
                 <button
-                  onClick={() => setShowSpoonacularSearch(false)}
-                  className={`px-4 py-2 rounded-md font-medium transition-colors ${
-                    !showSpoonacularSearch
-                      ? 'bg-white text-gray-900 shadow-sm'
-                      : 'text-gray-600 hover:text-gray-900'
-                  }`}
-                >
-                  My Recipes
-                </button>
-                <button
-                  onClick={() => setShowSpoonacularSearch(true)}
-                  className={`px-4 py-2 rounded-md font-medium transition-colors ${
-                    showSpoonacularSearch
-                      ? 'bg-white text-gray-900 shadow-sm'
-                      : 'text-gray-600 hover:text-gray-900'
-                  }`}
+                  onClick={() => setShowDiscoverSearch(true)}
+                  className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
                 >
                   Discover New Recipes
                 </button>
-              </div>
-              <div>
-                {!showSpoonacularSearch && (
-                  <button
-                    onClick={handleBackfill}
-                    disabled={backfilling || !user}
-                    className="px-3 py-2 rounded-md border text-sm hover:bg-gray-50 disabled:opacity-50"
-                    title="Re-import missing units/images for your recipes"
-                  >
-                    {backfilling ? 'Backfilling…' : 'Backfill Missing' }
-                  </button>
-                )}
+                <button
+                  onClick={handleBackfill}
+                  disabled={backfilling || !user}
+                  className="px-3 py-2 rounded-md border text-sm hover:bg-gray-50 disabled:opacity-50"
+                  title="Re-import missing units/images for your recipes"
+                >
+                  {backfilling ? 'Backfilling…' : 'Backfill Missing' }
+                </button>
               </div>
             </div>
             
@@ -165,9 +147,9 @@ export default function RecipesPage() {
               key={refreshTrigger}
               showSearch={true}
               showCreateButton={true}
-              title={showSpoonacularSearch ? "Discover New Recipes" : "My Recipes"}
-              showUserRecipes={!showSpoonacularSearch}
-              emptyMessage={!showSpoonacularSearch ? "No recipes found. Create your first recipe to get started!" : "No recipes found. Try adjusting your search filters."}
+              title="My Recipes"
+              showUserRecipes={true}
+              emptyMessage="No recipes found. Create your first recipe to get started!"
               onCreateRecipe={handleCreateRecipe}
               onAddToCollection={handleAddToCollection}
               onRateRecipe={handleRateRecipe}
