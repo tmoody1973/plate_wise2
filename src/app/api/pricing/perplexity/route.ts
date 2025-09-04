@@ -1069,7 +1069,7 @@ export async function POST(request: NextRequest) {
           })
 
           const controller = new AbortController()
-          const timeoutMs = process.env.NODE_ENV === 'development' ? 60000 : 22000
+          const timeoutMs = process.env.NODE_ENV === 'development' ? 60000 : 45000
           const timeoutId = setTimeout(() => controller.abort(), timeoutMs)
           const resp = await fetch('https://api.perplexity.ai/chat/completions', {
             method: 'POST',
@@ -1175,7 +1175,7 @@ export async function POST(request: NextRequest) {
       
       // Add a conservative timeout to avoid platform timeouts
       const controller = new AbortController()
-      const timeoutMs = process.env.NODE_ENV === 'development' ? 60000 : 28000
+      const timeoutMs = process.env.NODE_ENV === 'development' ? 60000 : 45000
       const timeoutId = setTimeout(() => controller.abort(), timeoutMs)
       const perplexityResponse = await fetch('https://api.perplexity.ai/chat/completions', {
         method: 'POST',
