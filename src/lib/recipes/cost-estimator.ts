@@ -158,10 +158,10 @@ export function estimateIngredientCost(ing: Ingredient): number {
   // Fallback: generic produce rate $3.5/kg for better estimates
   if (grams != null) return (grams / 1000) * 3.5
   
-  // Final fallback based on common amounts
-  if (ing.amount <= 2) return ing.amount * 2.5 // Small quantities
-  if (ing.amount <= 5) return ing.amount * 1.5 // Medium quantities
-  return ing.amount * 0.8 // Large quantities
+  // Final fallback based on common amounts - better estimates
+  if (ing.amount <= 2) return ing.amount * 3.5 // Small quantities like 2 onions = $7
+  if (ing.amount <= 5) return ing.amount * 2.5 // Medium quantities  
+  return ing.amount * 1.8 // Large quantities
 }
 
 export function estimateRecipeCost(ingredients: Ingredient[], servings: number): { totalCost: number; costPerServing: number } {

@@ -1132,7 +1132,8 @@ export async function POST(request: NextRequest) {
             clearTimeout(timeoutId)
           } catch (error: any) {
             clearTimeout(timeoutId)
-            console.warn(`⚠️ Perplexity API timeout/error for batch ${start}-${start + BATCH_SIZE}:`, error.message)
+            console.error(`❌ PERPLEXITY API FAILED for batch ${start}-${start + BATCH_SIZE}:`, error.message)
+            console.error('Failed batch ingredients:', batch.map(ing => ingName(ing)))
             // Fall back to estimated prices for this batch
             for (const ing of batch) {
               const estimated = heuristicCost({ 
@@ -1170,6 +1171,8 @@ export async function POST(request: NextRequest) {
           const data = await resp.json().catch(() => null as any)
           const content = data?.choices?.[0]?.message?.content || ''
           
+          console.log(`✅ Got Perplexity response for batch ${start}-${start + BATCH_SIZE}, content length:`, content.length)
+          
           // With structured output, the content should already be valid JSON
           let structuredResponse: any = null
           let arr: any[] | null = null
@@ -1178,11 +1181,14 @@ export async function POST(request: NextRequest) {
             // Try parsing as structured output first
             const parsed = JSON.parse(content)
             if (parsed?.items && Array.isArray(parsed.items)) {
+              console.log(`✅ Structured output: ${parsed.items.length} items`)
               arr = parsed.items
             } else if (Array.isArray(parsed)) {
+              console.log(`✅ Direct array: ${parsed.length} items`)
               arr = parsed
             } else {
               // Fallback to old parsing method
+              console.log('⚠️ Using fallback parsing')
               const cleaned = stripCodeFences(content)
               arr = extractJsonArray(cleaned)
               if (!arr) {
@@ -1190,7 +1196,8 @@ export async function POST(request: NextRequest) {
               }
             }
           } catch (e) {
-            console.warn('Failed to parse Perplexity response:', e)
+            console.error('❌ Failed to parse Perplexity response:', e)
+            console.error('Raw content:', content.slice(0, 500))
             if (debug) return NextResponse.json({ error: 'parse_error', body: content.slice(0, 800) }, { status: 502 })
             arr = []
           }
@@ -1199,6 +1206,7 @@ export async function POST(request: NextRequest) {
             const ing = batch[i]!
             const match = (arr || []).find(d => d?.ingredient && String(d.ingredient).toLowerCase().includes(ingName(ing).toLowerCase())) || (arr || [])[i]
             if (match) {
+              console.log(`✅ Found match for "${ingName(ing)}":`, JSON.stringify(match, null, 2))
               const sanitized = await sanitizeOption(match as PricingData, location, city)
               const portion = computePortionCost(sanitized, ingAmount(ing) ?? 1, ingUnit(ing) ?? 'each', ingName(ing))
               const pkg = normalizePrice(sanitized.packagePrice)
