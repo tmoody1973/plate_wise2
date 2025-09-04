@@ -105,6 +105,19 @@ const nextConfig = {
         port: '',
         pathname: '/**',
       },
+      // Whats4eats.com for global recipes
+      {
+        protocol: 'https',
+        hostname: 'www.whats4eats.com',
+        port: '',
+        pathname: '/**',
+      },
+      {
+        protocol: 'https',
+        hostname: 'whats4eats.com',
+        port: '',
+        pathname: '/**',
+      },
       // Generic CDN patterns for recipe sites
       {
         protocol: 'https',

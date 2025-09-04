@@ -128,19 +128,11 @@ class PerplexityRecipeSearchService {
               content: prompt
             }
           ],
-          max_tokens: 1200, // Reduced for faster response while maintaining quality
+          max_tokens: 1500, // Increased slightly for better recipe completeness
           temperature: 0.2, // Low randomness for concise JSON
           return_citations: true,
           stream: false, // Keep non-streaming for now - streaming needs different parsing
-          // Using a smaller domain filter for balance of speed and quality
-          search_domain_filter: [
-            // Top mainstream recipe sites only (reduced from 80+ to 20)
-            'allrecipes.com', 'food.com', 'epicurious.com', 'simplyrecipes.com',
-            'seriouseats.com', 'bonappetit.com', 'foodnetwork.com', 'tasteofhome.com',
-            'delish.com', 'foodandwine.com', 'thekitchn.com', 'bettycrocker.com',
-            'myrecipes.com', 'cookinglight.com', 'eatingwell.com', 'yummly.com',
-            'budgetbytes.com', 'cafedelites.com', 'natashaskitchen.com', 'recipetineats.com'
-          ]
+          // No domain filter - let Perplexity use its SEO ranking to find best results
         }),
         signal: controller.signal
       });
@@ -204,6 +196,12 @@ class PerplexityRecipeSearchService {
     
     if (culturalCuisine) {
       searchCriteria += ` from ${culturalCuisine} cuisine`;
+      // For global/international recipes, hint at whats4eats.com
+      if (culturalCuisine.toLowerCase().includes('global') || 
+          culturalCuisine.toLowerCase().includes('international') ||
+          culturalCuisine.toLowerCase().includes('world')) {
+        searchCriteria += ` (consider authentic sources like whats4eats.com for global recipes)`;
+      }
     }
     
     if (country && country !== 'United States') {
