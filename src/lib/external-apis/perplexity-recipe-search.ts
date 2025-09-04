@@ -154,14 +154,16 @@ class PerplexityRecipeSearchService {
         throw new Error('No content received from Perplexity API');
       }
 
-      // Parse the JSON response
-      const recipes = this.parseRecipeSearchResponse(content);
+      // Parse the JSON response with citations
+      const citations = result.citations || [];
+      const recipes = this.parseRecipeSearchResponse(content, citations);
       console.log('📊 Parsed recipes count:', recipes.length);
+      console.log('📔 Citations found:', citations.length);
       
       return {
         recipes,
         success: true,
-        sources: result.citations || []
+        sources: citations
       };
 
     } catch (error) {
@@ -234,6 +236,8 @@ Return ONLY a JSON object with this exact structure:
       "description": "Brief description",
       "cuisine": "Cuisine Type",
       "culturalOrigin": ["Culture"],
+      "source": "URL of recipe source",
+      "imageUrl": "URL of recipe image if available",
       "ingredients": [
         {"name": "ingredient", "amount": 1, "unit": "cup"}
       ],
@@ -259,7 +263,7 @@ IMPORTANT:
   /**
    * Parse Perplexity's recipe search response with robust error handling
    */
-  private parseRecipeSearchResponse(content: string): PerplexityRecipe[] {
+  private parseRecipeSearchResponse(content: string, citations: string[] = []): PerplexityRecipe[] {
     try {
       // Clean the content
       let cleanedContent = content.trim();
@@ -306,7 +310,7 @@ IMPORTANT:
         // Filter out any non-object entries and normalize
         return parsed.recipes
           .filter((recipe: any) => typeof recipe === 'object' && recipe !== null)
-          .map((recipe: any) => this.normalizeRecipe(recipe));
+          .map((recipe: any, index: number) => this.normalizeRecipe(recipe, citations[index] || citations[0] || ''));
       }
       
       // Check if the response IS the recipes array directly
@@ -315,13 +319,13 @@ IMPORTANT:
         // Filter out any non-object entries
         return parsed
           .filter((recipe: any) => typeof recipe === 'object' && recipe !== null)
-          .map((recipe: any) => this.normalizeRecipe(recipe));
+          .map((recipe: any, index: number) => this.normalizeRecipe(recipe, citations[index] || citations[0] || ''));
       }
       
       // Check for a single recipe object
       if (parsed.title && parsed.ingredients) {
         console.log('📦 Response is a single recipe object');
-        return [this.normalizeRecipe(parsed)];
+        return [this.normalizeRecipe(parsed, citations[0] || '')];
       }
 
       console.error('❌ Unexpected JSON structure:', parsed);
@@ -333,7 +337,7 @@ IMPORTANT:
       console.log('🔍 Last 500 chars:', content.substring(Math.max(0, content.length - 500)));
       
       // Try alternative parsing approaches
-      return this.attemptFallbackParsing(content);
+      return this.attemptFallbackParsing(content, citations);
     }
   }
 
@@ -375,20 +379,21 @@ IMPORTANT:
   /**
    * Attempt fallback parsing when main parsing fails
    */
-  private attemptFallbackParsing(content: string): PerplexityRecipe[] {
+  private attemptFallbackParsing(content: string, citations: string[] = []): PerplexityRecipe[] {
     console.log('🔄 Attempting fallback parsing methods...');
     
     // Try multiple fallback approaches
     const fallbackMethods = [
-      () => this.tryExtractRecipesArray(content),
-      () => this.tryFixAndParseComplete(content),
-      () => this.tryLenientParsing(content),
+      () => this.tryExtractRecipesArray(content, citations),
+      () => this.tryFixAndParseComplete(content, citations),
+      () => this.tryLenientParsing(content, citations),
     ];
     
     for (let i = 0; i < fallbackMethods.length; i++) {
       try {
         console.log(`🔄 Trying fallback method ${i + 1}...`);
-        const result = fallbackMethods[i]();
+        const method = fallbackMethods[i];
+        const result = method ? method() : null;
         if (result && result.length > 0) {
           console.log(`✅ Fallback method ${i + 1} succeeded with ${result.length} recipes`);
           return result;
@@ -402,19 +407,19 @@ IMPORTANT:
     return [];
   }
   
-  private tryExtractRecipesArray(content: string): PerplexityRecipe[] {
+  private tryExtractRecipesArray(content: string, citations: string[] = []): PerplexityRecipe[] {
     // Try to extract just the recipes array if the outer structure is broken
     const recipesMatch = content.match(/"recipes"\s*:\s*\[(.*?)\]/s);
     if (recipesMatch) {
       const recipesArrayContent = `[${recipesMatch[1]}]`;
       const fixedArray = this.fixCommonJSONIssues(recipesArrayContent);
       const recipes = JSON.parse(fixedArray);
-      return recipes.map((recipe: any) => this.normalizeRecipe(recipe));
+      return recipes.map((recipe: any, index: number) => this.normalizeRecipe(recipe, citations[index] || citations[0] || ''));
     }
     return [];
   }
   
-  private tryFixAndParseComplete(content: string): PerplexityRecipe[] {
+  private tryFixAndParseComplete(content: string, citations: string[] = []): PerplexityRecipe[] {
     // Try more aggressive JSON fixing
     let fixed = content;
     
@@ -433,12 +438,12 @@ IMPORTANT:
     
     const parsed = JSON.parse(fixed);
     if (parsed.recipes && Array.isArray(parsed.recipes)) {
-      return parsed.recipes.map((recipe: any) => this.normalizeRecipe(recipe));
+      return parsed.recipes.map((recipe: any, index: number) => this.normalizeRecipe(recipe, citations[index] || citations[0] || ''));
     }
     return [];
   }
   
-  private tryLenientParsing(content: string): PerplexityRecipe[] {
+  private tryLenientParsing(content: string, citations: string[] = []): PerplexityRecipe[] {
     // Try to manually extract recipe objects even if JSON is completely broken
     const recipeMatches = content.match(/\{[^{}]*"title"\s*:\s*"[^"]*"[^{}]*\}/g);
     if (recipeMatches && recipeMatches.length > 0) {
@@ -448,7 +453,7 @@ IMPORTANT:
         try {
           const fixed = this.fixCommonJSONIssues(match);
           const recipe = JSON.parse(fixed);
-          recipes.push(this.normalizeRecipe(recipe));
+          recipes.push(this.normalizeRecipe(recipe, citations[recipes.length] || citations[0] || ''));
         } catch (err) {
           console.log('Failed to parse individual recipe object:', err);
         }
@@ -462,7 +467,7 @@ IMPORTANT:
   /**
    * Normalize recipe data to ensure consistency
    */
-  private normalizeRecipe(recipe: any): PerplexityRecipe {
+  private normalizeRecipe(recipe: any, citationUrl: string = ''): PerplexityRecipe {
     // Validate recipe is an object
     if (!recipe || typeof recipe !== 'object') {
       console.warn('⚠️ Invalid recipe data:', recipe);
@@ -475,7 +480,7 @@ IMPORTANT:
         instructions: [{step: 1, text: 'Recipe data was invalid'}],
         nutritionalInfo: undefined,
         metadata: {
-          sourceUrl: '',
+          sourceUrl: citationUrl || '',
           servings: 4,
           totalTimeMinutes: 30,
           difficulty: 'medium'
@@ -609,7 +614,7 @@ IMPORTANT:
         };
       })(),
       metadata: {
-        sourceUrl: recipe.metadata?.sourceUrl || recipe.source || '',
+        sourceUrl: citationUrl || recipe.metadata?.sourceUrl || recipe.source || '',
         imageUrl: recipe.metadata?.imageUrl || recipe.image || recipe.imageUrl || undefined,
         servings: typeof (recipe.metadata?.servings || recipe.servings) === 'number' 
           ? (recipe.metadata?.servings || recipe.servings) 
