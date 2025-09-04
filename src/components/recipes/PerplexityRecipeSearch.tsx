@@ -86,10 +86,14 @@ export function PerplexityRecipeSearch({
         setAllRecipes(newRecipes)
         onRecipesFound?.(newRecipes)
         setIsLoadingMore(false)
+        // Repair images for new recipes
+        repairMissingImages(result.recipes)
       } else {
         // Replace with new search results
         setAllRecipes(result.recipes)
         onRecipesFound?.(result.recipes)
+        // Repair images for all recipes
+        repairMissingImages(result.recipes)
       }
     }
   }, [result.recipes])
@@ -102,6 +106,59 @@ export function PerplexityRecipeSearch({
       setDietary(prev => [...prev, option])
     } else {
       setDietary(prev => prev.filter(d => d !== option))
+    }
+  }
+
+  // Function to repair missing images for recipes
+  const repairMissingImages = async (recipes: any[]) => {
+    try {
+      // Filter recipes that don't have image URLs
+      const recipesNeedingImages = recipes.filter(recipe => 
+        !recipe.metadata?.imageUrl && 
+        !recipe.metadata?.image_url && 
+        !recipe.imageUrl &&
+        recipe.metadata?.sourceUrl
+      )
+
+      if (recipesNeedingImages.length === 0) return
+
+      // Repair images in parallel (limit to 3 concurrent requests to avoid overwhelming the API)
+      const repairPromises = recipesNeedingImages.slice(0, 3).map(async (recipe) => {
+        try {
+          const response = await fetch('/api/recipes/repair-image', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              source: recipe.metadata.sourceUrl,
+              title: recipe.title,
+            }),
+          })
+
+          if (response.ok) {
+            const result = await response.json()
+            // Update the recipe with the new image URL
+            recipe.metadata.image_url = result.image_url
+            recipe.metadata.imageUrl = result.image_url
+            return result
+          }
+        } catch (error) {
+          console.error('Failed to repair image for recipe:', recipe.title, error)
+        }
+        return null
+      })
+
+      const results = await Promise.all(repairPromises)
+      const successCount = results.filter(Boolean).length
+      
+      if (successCount > 0) {
+        // Trigger a re-render by updating the state
+        setAllRecipes(prev => [...prev])
+        console.log(`Successfully repaired ${successCount} recipe images`)
+      }
+    } catch (error) {
+      console.error('Error repairing recipe images:', error)
     }
   }
 
@@ -290,6 +347,26 @@ export function PerplexityRecipeSearch({
       {isComplete && result.recipes.length === 0 && !isError && allRecipes.length === 0 && (
         <div className="text-yellow-600 text-sm bg-yellow-50 p-3 rounded-lg">
           No recipes found. Try adjusting your search terms or filters.
+        </div>
+      )}
+
+      {/* Manual Repair Buttons */}
+      {isComplete && allRecipes.length > 0 && (
+        <div className="flex gap-2 mt-4">
+          <button
+            onClick={() => repairMissingImages(allRecipes)}
+            className="px-3 py-2 text-sm bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors flex items-center space-x-2"
+          >
+            <span>🔧</span>
+            <span>Repair Images</span>
+          </button>
+          <button
+            onClick={() => repairMissingImages(allRecipes.slice(0, 12))}
+            className="px-3 py-2 text-sm bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors flex items-center space-x-2"
+          >
+            <span>🔄</span>
+            <span>Repair All (Background)</span>
+          </button>
         </div>
       )}
 
