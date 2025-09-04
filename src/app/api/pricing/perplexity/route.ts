@@ -1048,7 +1048,7 @@ export async function POST(request: NextRequest) {
       }))
 
       // If too many ingredients, process in smaller batches to avoid timeouts
-      const BATCH_SIZE = 3
+      const BATCH_SIZE = 2
       if (ingredientList.length > BATCH_SIZE) {
         for (let start = 0; start < ingredients.length; start += BATCH_SIZE) {
           const batch = ingredients.slice(start, start + BATCH_SIZE)
@@ -1069,9 +1069,12 @@ export async function POST(request: NextRequest) {
           })
 
           const controller = new AbortController()
-          const timeoutMs = process.env.NODE_ENV === 'development' ? 60000 : 8000
+          const timeoutMs = process.env.NODE_ENV === 'development' ? 60000 : 7000
           const timeoutId = setTimeout(() => controller.abort(), timeoutMs)
-          const resp = await fetch('https://api.perplexity.ai/chat/completions', {
+          
+          let resp: Response | null = null
+          try {
+            resp = await fetch('https://api.perplexity.ai/chat/completions', {
             method: 'POST',
             headers: {
               'Authorization': `Bearer ${perplexityApiKey}`,
@@ -1083,7 +1086,7 @@ export async function POST(request: NextRequest) {
                 { role: 'system', content: 'You are a grocery pricing assistant. Return ONLY a valid JSON array with the requested fields. No extra text.' },
                 { role: 'user', content: batchPrompt }
               ],
-              max_tokens: 400,
+              max_tokens: 250,
               temperature: 0.1,
               top_p: 0.9,
               return_citations: false,
@@ -1092,13 +1095,35 @@ export async function POST(request: NextRequest) {
               ]
             }),
             signal: controller.signal
-          })
-          clearTimeout(timeoutId)
+            })
+            clearTimeout(timeoutId)
+          } catch (error: any) {
+            clearTimeout(timeoutId)
+            console.warn(`⚠️ Perplexity API timeout/error for batch ${start}-${start + BATCH_SIZE}:`, error.message)
+            // Fall back to estimated prices for this batch
+            for (const ing of batch) {
+              const estimated = heuristicCost({ name: ingName(ing), amount: ingAmount(ing) ?? 1, unit: ingUnit(ing) ?? 'unit' })
+              results.push({
+                id: results.length + 1,
+                original: ingName(ing),
+                matched: 'Estimated price (API timeout)',
+                estimatedCost: estimated,
+                portionCost: estimated,
+                packagePrice: estimated * 4, // Rough package estimate
+                confidence: 0.3,
+                needsReview: true,
+                packages: 1,
+                storeName: 'Estimated',
+                storeType: 'fallback'
+              })
+            }
+            continue // Skip to next batch
+          }
 
-          if (!resp.ok) {
-            const text = await resp.text().catch(() => '')
-            if (debug) return NextResponse.json({ error: 'perplexity_upstream', status: resp.status, body: text.slice(0, 800) }, { status: 502 })
-            return NextResponse.json({ error: `perplexity_upstream_${resp.status}` }, { status: 502 })
+          if (!resp || !resp.ok) {
+            const text = resp ? await resp.text().catch(() => '') : ''
+            if (debug) return NextResponse.json({ error: 'perplexity_upstream', status: resp?.status || 0, body: text.slice(0, 800) }, { status: 502 })
+            return NextResponse.json({ error: `perplexity_upstream_${resp?.status || 'unknown'}` }, { status: 502 })
           }
 
           const data = await resp.json().catch(() => null as any)
@@ -1175,9 +1200,12 @@ export async function POST(request: NextRequest) {
       
       // Add a conservative timeout to avoid platform timeouts
       const controller = new AbortController()
-      const timeoutMs = process.env.NODE_ENV === 'development' ? 60000 : 8000
+      const timeoutMs = process.env.NODE_ENV === 'development' ? 60000 : 7000
       const timeoutId = setTimeout(() => controller.abort(), timeoutMs)
-      const perplexityResponse = await fetch('https://api.perplexity.ai/chat/completions', {
+      
+      let perplexityResponse: Response | null = null
+      try {
+        perplexityResponse = await fetch('https://api.perplexity.ai/chat/completions', {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${perplexityApiKey}`,
@@ -1195,7 +1223,7 @@ export async function POST(request: NextRequest) {
               content: prompt
             }
           ],
-          max_tokens: 400, // compact mode; reduce tokens to avoid timeouts
+          max_tokens: 250, // compact mode; reduce tokens to avoid timeouts
           temperature: 0.1,
           top_p: 0.9,
           return_citations: false,
@@ -1205,18 +1233,46 @@ export async function POST(request: NextRequest) {
           ]
         }),
         signal: controller.signal
-      })
-      clearTimeout(timeoutId)
+        })
+        clearTimeout(timeoutId)
+      } catch (error: any) {
+        clearTimeout(timeoutId)
+        console.warn(`⚠️ Perplexity API timeout/error:`, error.message)
+        // Fall back to estimated prices for all ingredients
+        const fallbackResults = ingredients.map((ing, i) => {
+          const estimated = heuristicCost({ name: ingName(ing), amount: ingAmount(ing) ?? 1, unit: ingUnit(ing) ?? 'unit' })
+          return {
+            id: i + 1,
+            original: ingName(ing),
+            matched: 'Estimated price (API timeout)',
+            estimatedCost: estimated,
+            portionCost: estimated,
+            packagePrice: estimated * 4,
+            confidence: 0.3,
+            needsReview: true,
+            packages: 1,
+            storeName: 'Estimated',
+            storeType: 'fallback'
+          }
+        })
+        
+        return NextResponse.json({
+          results: fallbackResults,
+          totalEstimated: fallbackResults.reduce((sum, item) => sum + (item.portionCost || 0), 0),
+          source: 'fallback',
+          note: 'Using estimated prices due to API timeout'
+        })
+      }
 
-      console.log('📡 Perplexity API response:', perplexityResponse.status, perplexityResponse.statusText);
+      console.log('📡 Perplexity API response:', perplexityResponse?.status, perplexityResponse?.statusText);
       
-      if (!perplexityResponse.ok) {
-        const errorText = await perplexityResponse.text().catch(() => '')
-        console.error('❌ Perplexity API error:', perplexityResponse.status, errorText?.slice(0, 600))
+      if (!perplexityResponse || !perplexityResponse.ok) {
+        const errorText = perplexityResponse ? await perplexityResponse.text().catch(() => '') : ''
+        console.error('❌ Perplexity API error:', perplexityResponse?.status, errorText?.slice(0, 600))
         if (debug) {
-          return NextResponse.json({ error: 'perplexity_upstream', status: perplexityResponse.status, body: errorText?.slice(0, 800) }, { status: 502 })
+          return NextResponse.json({ error: 'perplexity_upstream', status: perplexityResponse?.status || 0, body: errorText?.slice(0, 800) }, { status: 502 })
         }
-        return NextResponse.json({ error: `perplexity_upstream_${perplexityResponse.status}` }, { status: 502 })
+        return NextResponse.json({ error: `perplexity_upstream_${perplexityResponse?.status || 'unknown'}` }, { status: 502 })
       }
 
       const perplexityData = (await perplexityResponse.json()) as unknown as PerplexityAPIResponse
