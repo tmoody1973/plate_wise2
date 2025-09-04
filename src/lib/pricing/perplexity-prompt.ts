@@ -8,6 +8,7 @@ export type BuildPerplexityPromptOptions = {
   city?: string
   defaultStore?: string
   preferredStores?: string[]
+  compact?: boolean // If true, return only best option per ingredient (and at most 1 alternative)
 }
 
 // Builds the Perplexity pricing prompt with explicit grocery chains and requirements
@@ -37,6 +38,10 @@ ${opts.ingredients.map((ing, i) => `- { "name": "${ing.name}", "amount": ${ing.a
     "Winn‑Dixie","Ralphs","Vons","Fred Meyer","Harris Teeter","Hy‑Vee","Wegmans"
   ]
 
+  const compactNote = opts.compact
+    ? 'Return only the BEST chain option per ingredient. If absolutely necessary, include at most 1 alternative in "options".'
+    : 'The top-level entry per ingredient should be the BEST option (lowest portionCost). Provide 2–5 additional chain choices in "options", sorted by portionCost.'
+
   return `${ingredientSection}
 
 Cultural context (for naming only): ${culturalContext}
@@ -51,7 +56,7 @@ STRICT STORE POLICY:
 PRICING RULES:
 - Compute portionCost for the recipe's amount/unit from the packageSize and packagePrice (e.g., tbsp↔ml, lb↔g). Prefer realistic sizes; if adjusting, reflect in productName.
 - Label unitPrice clearly (e.g., "$3.99/lb", "$0.59/oz", "$0.15/tbsp").
-- The top-level entry per ingredient should be the BEST option (lowest portionCost). Provide 2–5 additional chain choices in "options", sorted by portionCost.
+- ${compactNote}
 - All store addresses must be strings appropriate to ${city} (accept known city-level location strings when a precise street is not available).
 - If exact brand/size is unavailable, pick a close chain-brand alternative and note it in productName.
 
@@ -85,7 +90,7 @@ OUTPUT FORMAT (JSON ARRAY ONLY — no prose):
 ]
 
 CRITICAL:
-- Return ONE top-level object per requested ingredient (the best chain option) plus 2–5 chain alternatives in "options".
+- Return ONE top-level object per requested ingredient (the best chain option)${opts.compact ? '' : ' plus 2–5 chain alternatives in "options"'}.
 - ONLY use major chains present in ${city}. Provide realistic prices and addresses.
 - Return ONLY the JSON array. No markdown or extra text.`
 }

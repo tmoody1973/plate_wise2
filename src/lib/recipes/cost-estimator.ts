@@ -13,30 +13,55 @@ const PRICE_MAP: PriceMap = {
     tomato: 3.5,
     celery: 2.8,
     'bell pepper': 4.0,
+    'pepper': 4.0,
     potato: 1.8,
     garlic: 8.0,
+    'garlic, minced': 8.0,
+    'minced garlic': 8.0,
     lemon: 3.0,
     lime: 3.5,
     chicken: 6.5,
+    'whole chicken': 4.5,
+    'chicken breast': 8.0,
+    'chicken thighs': 5.5,
     beef: 12.0,
+    'ground beef': 8.0,
     pork: 6.0,
     rice: 2.5,
+    'cooked rice': 3.5,
+    'white rice': 2.5,
+    'brown rice': 3.0,
     beans: 2.5,
     flour: 1.5,
     sugar: 1.2,
     butter: 8.0,
     cheese: 9.0,
     salt: 0.8,
-    oil: 6.0, // fallback if no perLiter density
+    oil: 6.0,
+    'vegetable oil': 5.5,
+    'olive oil': 12.0,
+    'cooking oil': 5.5,
+    ketchup: 3.5,
+    'tomato ketchup': 3.5,
+    mustard: 3.0,
+    mayonnaise: 4.5,
   },
   perEach: {
     egg: 0.3,
     lemon: 0.6,
     lime: 0.5,
+    onion: 0.5,
+    'bell pepper': 1.5,
+    tomato: 0.8,
+    potato: 0.4,
   },
   perLiter: {
     milk: 1.0,
     oil: 6.0,
+    'vegetable oil': 5.5,
+    'olive oil': 12.0,
+    'cooking oil': 5.5,
+    water: 0,
   },
 }
 
@@ -69,8 +94,17 @@ const GRAMS_PER_CUP: Record<string, number> = {
 }
 
 function matchKey(name: string, dict: Record<string, any>): string | undefined {
-  const lower = name.toLowerCase()
-  return Object.keys(dict).find(k => lower.includes(k))
+  const lower = name.toLowerCase().trim()
+  
+  // First try exact match
+  if (dict[lower]) return lower
+  
+  // Then try to find if any key is contained in the name
+  const found = Object.keys(dict).find(k => lower.includes(k))
+  if (found) return found
+  
+  // Try to find if the name contains any key
+  return Object.keys(dict).find(k => k.includes(lower.split(' ')[0]))
 }
 
 function toMl(amount: number, unit: string): number | null {
@@ -121,9 +155,13 @@ export function estimateIngredientCost(ing: Ingredient): number {
     return (PRICE_MAP.perEach[keyEach] || 0) * count
   }
 
-  // Fallback: generic produce rate $2.8/kg
-  if (grams != null) return (grams / 1000) * 2.8
-  return 0
+  // Fallback: generic produce rate $3.5/kg for better estimates
+  if (grams != null) return (grams / 1000) * 3.5
+  
+  // Final fallback based on common amounts
+  if (ing.amount <= 2) return ing.amount * 2.5 // Small quantities
+  if (ing.amount <= 5) return ing.amount * 1.5 // Medium quantities
+  return ing.amount * 0.8 // Large quantities
 }
 
 export function estimateRecipeCost(ingredients: Ingredient[], servings: number): { totalCost: number; costPerServing: number } {

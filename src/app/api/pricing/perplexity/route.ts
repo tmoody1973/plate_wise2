@@ -1069,7 +1069,7 @@ export async function POST(request: NextRequest) {
           })
 
           const controller = new AbortController()
-          const timeoutMs = process.env.NODE_ENV === 'development' ? 60000 : 7000
+          const timeoutMs = process.env.NODE_ENV === 'development' ? 60000 : 9500
           const timeoutId = setTimeout(() => controller.abort(), timeoutMs)
           
           let resp: Response | null = null
@@ -1200,7 +1200,7 @@ export async function POST(request: NextRequest) {
       
       // Add a conservative timeout to avoid platform timeouts
       const controller = new AbortController()
-      const timeoutMs = process.env.NODE_ENV === 'development' ? 60000 : 7000
+      const timeoutMs = process.env.NODE_ENV === 'development' ? 60000 : 9500
       const timeoutId = setTimeout(() => controller.abort(), timeoutMs)
       
       let perplexityResponse: Response | null = null
