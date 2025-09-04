@@ -121,21 +121,98 @@ class PerplexityRecipeSearchService {
           messages: [
             {
               role: 'system',
-              content: 'You are a recipe search assistant. Always return ONLY valid JSON in the exact format requested. Do not include any explanatory text, reasoning, or commentary outside the JSON.'
+              content: 'You are a recipe search assistant. Provide recipe information in structured format.'
             },
             {
               role: 'user',
               content: prompt
             }
           ],
-          max_tokens: 800, // Bounded for faster responses
+          max_tokens: 2000, // Increased for detailed recipes
           temperature: 0.2, // Low randomness for concise JSON
           return_citations: true,
           search_domain_filter: [
             'allrecipes.com', 'food.com', 'epicurious.com', 'simplyrecipes.com',
             'seriouseats.com', 'bonappetit.com', 'foodnetwork.com', 'tasteofhome.com',
             'delish.com', 'foodandwine.com'
-          ]
+          ],
+          // Enable structured output for recipes
+          response_format: {
+            type: 'json_schema',
+            json_schema: {
+              name: 'recipe_search',
+              schema: {
+                type: 'object',
+                properties: {
+                  recipes: {
+                    type: 'array',
+                    items: {
+                      type: 'object',
+                      properties: {
+                        title: { type: 'string' },
+                        description: { type: 'string' },
+                        cuisine: { type: 'string' },
+                        culturalOrigin: { 
+                          type: 'array',
+                          items: { type: 'string' }
+                        },
+                        ingredients: {
+                          type: 'array',
+                          items: {
+                            type: 'object',
+                            properties: {
+                              name: { type: 'string' },
+                              amount: { type: 'number' },
+                              unit: { type: 'string' },
+                              notes: { type: 'string' }
+                            },
+                            required: ['name', 'amount', 'unit']
+                          }
+                        },
+                        instructions: {
+                          type: 'array',
+                          items: {
+                            type: 'object',
+                            properties: {
+                              step: { type: 'number' },
+                              text: { type: 'string' }
+                            },
+                            required: ['step', 'text']
+                          }
+                        },
+                        nutritionalInfo: {
+                          type: 'object',
+                          properties: {
+                            calories: { type: 'number' },
+                            protein_g: { type: 'number' },
+                            fat_g: { type: 'number' },
+                            carbs_g: { type: 'number' }
+                          }
+                        },
+                        metadata: {
+                          type: 'object',
+                          properties: {
+                            sourceUrl: { type: 'string' },
+                            imageUrl: { type: 'string' },
+                            servings: { type: 'number' },
+                            totalTimeMinutes: { type: 'number' },
+                            difficulty: { type: 'string' }
+                          }
+                        },
+                        tags: {
+                          type: 'array',
+                          items: { type: 'string' }
+                        }
+                      },
+                      required: ['title', 'description', 'ingredients', 'instructions']
+                    }
+                  }
+                },
+                required: ['recipes']
+              },
+              strict: true
+            }
+          }
         }),
         signal: controller.signal
       });
@@ -157,9 +234,23 @@ class PerplexityRecipeSearchService {
         throw new Error('No content received from Perplexity API');
       }
 
-      // Parse the JSON response
-      const recipes = this.parseRecipeSearchResponse(content);
-      console.log('📊 Parsed recipes count:', recipes.length);
+      // With structured output, the content should already be valid JSON
+      let recipes: PerplexityRecipe[] = [];
+      try {
+        const parsed = JSON.parse(content);
+        if (parsed?.recipes && Array.isArray(parsed.recipes)) {
+          console.log('✅ Structured output parsed successfully');
+          recipes = parsed.recipes.map((recipe: any) => this.normalizeRecipe(recipe));
+        } else {
+          // Fallback to old parsing method if not structured
+          console.log('⚠️ Falling back to legacy parsing');
+          recipes = this.parseRecipeSearchResponse(content);
+        }
+      } catch (parseError) {
+        console.error('❌ Failed to parse structured response, using fallback:', parseError);
+        recipes = this.parseRecipeSearchResponse(content);
+      }
+      console.log('📊 Final recipes count:', recipes.length);
       
       return {
         recipes,
@@ -224,9 +315,8 @@ class PerplexityRecipeSearchService {
 Find exactly ${maxResults || 1} recipe(s).${filters}
 
 For instructions, include timing, temperatures, visual cues, and techniques directly in the text.
-
-Return ONLY valid JSON with this exact structure - use 'amount' not 'quantity', use numbers not null:
-{"recipes":[{"title":"Recipe Name","description":"Brief description","cuisine":"Cuisine Type","culturalOrigin":["Culture"],"ingredients":[{"name":"ingredient name","amount":1,"unit":"cup"}],"instructions":[{"step":1,"text":"detailed instruction text"}],"nutritionalInfo":{"calories":300,"protein_g":15,"fat_g":10,"carbs_g":45},"metadata":{"sourceUrl":"https://example.com","imageUrl":"https://image.url","servings":4,"totalTimeMinutes":30,"difficulty":"medium"},"tags":["tag1","tag2"]}]}`;
+Include nutritional information per serving when available.
+Provide accurate ingredient amounts using standard cooking measurements.`;
   }
 
   /**

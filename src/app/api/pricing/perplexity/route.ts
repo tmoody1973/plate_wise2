@@ -3,6 +3,7 @@ import { buildPerplexityPrompt } from '@/lib/pricing/perplexity-prompt'
 import { createClient } from '@/lib/supabase/server'
 import { normalizeUnit, parsePackSize, estimateIngredientCost, convert } from '@/utils/units'
 import { estimateIngredientCost as heuristicCost } from '@/lib/recipes/cost-estimator'
+import type { Ingredient } from '@/types'
 // Avoid static import of Google Places service (constructor throws without API key).
 // We'll lazy-load it inside functions when GOOGLE_PLACES_API_KEY is present.
 import { ingredientQuantityNormalizer } from '@/lib/recipes/ingredient-quantity-normalizer'
@@ -1135,9 +1136,10 @@ export async function POST(request: NextRequest) {
             console.error(`❌ PERPLEXITY API FAILED for batch ${start}-${start + BATCH_SIZE}:`, error.message)
             console.error('Failed batch ingredients:', batch.map(ing => ingName(ing)))
             // Fall back to estimated prices for this batch
-            for (const ing of batch) {
+            for (let idx = 0; idx < batch.length; idx++) {
+              const ing = batch[idx]
               const estimated = heuristicCost({ 
-                id: `temp-${i}`,
+                id: `temp-${idx}`,
                 name: ingName(ing), 
                 amount: ingAmount(ing) ?? 1, 
                 unit: ingUnit(ing) ?? 'unit',
