@@ -90,7 +90,11 @@ OUTPUT FORMAT (JSON ARRAY ONLY — no prose):
 ]
 
 CRITICAL:
-- Return ONE top-level object per requested ingredient (the best chain option)${opts.compact ? '' : ' plus 2–5 chain alternatives in "options"'}.
+- Return EXACTLY ONE top-level object per requested ingredient (the best chain option)${opts.compact ? '' : ' plus 2–5 chain alternatives in "options"'}.
+- Each object MUST have a DIFFERENT ingredient name matching the requested ingredients exactly.
+- Each object MUST have a DIFFERENT productName appropriate for that specific ingredient.
+- Do NOT reuse the same productName or pricing data across different ingredients.
 - ONLY use major chains present in ${city}. Provide realistic prices and addresses.
-- Return ONLY the JSON array. No markdown or extra text.`
+- Return ONLY the JSON array. No markdown or extra text.
+- ENSURE the array has the same number of objects as requested ingredients, in the same order.`
 }

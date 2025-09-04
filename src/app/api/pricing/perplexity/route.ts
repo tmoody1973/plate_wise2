@@ -1049,7 +1049,7 @@ export async function POST(request: NextRequest) {
       }))
 
       // If too many ingredients, process in smaller batches to avoid timeouts
-      const BATCH_SIZE = 2
+      const BATCH_SIZE = 4
       if (ingredientList.length > BATCH_SIZE) {
         for (let start = 0; start < ingredients.length; start += BATCH_SIZE) {
           const batch = ingredients.slice(start, start + BATCH_SIZE)
@@ -1204,11 +1204,43 @@ export async function POST(request: NextRequest) {
             arr = []
           }
 
+          // Track used product names to prevent duplicates
+          const usedProductNames = new Set<string>()
+          
           for (let i = 0; i < batch.length; i++) {
             const ing = batch[i]!
-            const match = (arr || []).find(d => d?.ingredient && String(d.ingredient).toLowerCase().includes(ingName(ing).toLowerCase())) || (arr || [])[i]
+            const ingredientName = ingName(ing)
+            console.log(`🔍 Looking for match for ingredient: "${ingredientName}"`)
+            console.log(`🔍 Available API responses:`, (arr || []).map(d => ({
+              ingredient: d?.ingredient,
+              productName: d?.productName,
+              storeName: d?.storeName
+            })))
+            
+            // Try to find a match that hasn't been used and matches the ingredient
+            let match = (arr || []).find(d => 
+              d?.ingredient && 
+              String(d.ingredient).toLowerCase().includes(ingredientName.toLowerCase()) &&
+              !usedProductNames.has(d.productName || '')
+            ) || (arr || [])[i]
+            
+            // If we got a match but it's a duplicate product name, try to find an unused one
+            if (match && usedProductNames.has(match.productName || '')) {
+              const alternativeMatch = (arr || []).find(d => 
+                d && !usedProductNames.has(d.productName || '')
+              )
+              if (alternativeMatch) {
+                console.log(`⚠️ Duplicate product "${match.productName}" detected, using alternative`)
+                match = alternativeMatch
+              }
+            }
+            
             if (match) {
-              console.log(`✅ Found match for "${ingName(ing)}":`, JSON.stringify(match, null, 2))
+              // Mark this product as used
+              if (match.productName) {
+                usedProductNames.add(match.productName)
+              }
+              console.log(`✅ Found match for "${ingredientName}":`, JSON.stringify(match, null, 2))
               const sanitized = await sanitizeOption(match as PricingData, location, city)
               const portion = computePortionCost(sanitized, ingAmount(ing) ?? 1, ingUnit(ing) ?? 'each', ingName(ing))
               const pkg = normalizePrice(sanitized.packagePrice)
@@ -1229,7 +1261,30 @@ export async function POST(request: NextRequest) {
                 sourceUrl: sanitized.sourceUrl,
               })
             } else {
-              results.push({ id: results.length + 1, original: ingName(ing), matched: 'Pricing unavailable', estimatedCost: 0, portionCost: 0, packagePrice: 0, confidence: 0.1, needsReview: true, packages: 1 })
+              console.log(`❌ No match found for "${ingredientName}", using fallback estimate`)
+              // Use cost estimator for missing items
+              const estimated = heuristicCost({ 
+                id: `temp-${i}`,
+                name: ingredientName, 
+                amount: ingAmount(ing) ?? 1, 
+                unit: ingUnit(ing) ?? 'unit',
+                substitutes: [],
+                costPerUnit: 0,
+                availability: []
+              } as Ingredient)
+              results.push({
+                id: results.length + 1,
+                original: ingredientName,
+                matched: 'Estimated price (no API match)',
+                estimatedCost: estimated,
+                portionCost: estimated,
+                packagePrice: estimated * 3,
+                confidence: 0.4,
+                needsReview: true,
+                packages: 1,
+                storeName: 'Estimated',
+                storeType: 'fallback'
+              })
             }
           }
         }
@@ -1423,14 +1478,49 @@ export async function POST(request: NextRequest) {
       console.log('📊 Final parsed pricing data:', pricingData.length, 'items')
       console.log('📋 Sample item:', pricingData[0])
 
-      // Process each pricing result
+      // Process each pricing result with deduplication
+      const usedProductNames = new Set<string>()
       for (let i = 0; i < ingredients.length; i++) {
         const ingredient = ingredients[i]!
-        const matchingPriceData = pricingData.find(data => 
-          data.ingredient && data.ingredient.toLowerCase().includes(ingName(ingredient).toLowerCase())
+        const ingredientName = ingName(ingredient)
+        console.log(`🔍 Processing ingredient: "${ingredientName}"`)
+        console.log(`🔍 Available pricing data:`, pricingData.map(data => ({
+          ingredient: data.ingredient,
+          productName: data.productName,
+          storeName: data.storeName,
+          packagePrice: data.packagePrice
+        })))
+        
+        // Try to find a match that hasn't been used and matches the ingredient
+        let matchingPriceData = pricingData.find(data => 
+          data.ingredient && 
+          data.ingredient.toLowerCase().includes(ingredientName.toLowerCase()) &&
+          !usedProductNames.has(data.productName || '')
         ) || pricingData[i] // fallback to index matching
+        
+        // If we got a match but it's a duplicate product name, try to find an unused one
+        if (matchingPriceData && usedProductNames.has(matchingPriceData.productName || '')) {
+          const alternativeMatch = pricingData.find(data => 
+            data && !usedProductNames.has(data.productName || '')
+          )
+          if (alternativeMatch) {
+            console.log(`⚠️ Duplicate product "${matchingPriceData.productName}" detected for "${ingredientName}", using alternative`)
+            matchingPriceData = alternativeMatch
+          }
+        }
+
+        console.log(`🎯 Selected match for "${ingredientName}":`, matchingPriceData ? {
+          ingredient: matchingPriceData.ingredient,
+          productName: matchingPriceData.productName,
+          packagePrice: matchingPriceData.packagePrice
+        } : 'NO MATCH')
 
         if (matchingPriceData) {
+          // Mark this product as used to prevent duplicates
+          if (matchingPriceData.productName) {
+            usedProductNames.add(matchingPriceData.productName)
+          }
+          
           const sanitized = await sanitizeOption(matchingPriceData, location, city)
           console.log(`🏪 Store data for ingredient "${ingName(ingredient)}":`, {
             rawStoreName: matchingPriceData?.storeName,

@@ -8,52 +8,64 @@ type PriceMap = {
 
 const PRICE_MAP: PriceMap = {
   perKg: {
-    onion: 2.2,
-    carrot: 2.0,
-    tomato: 3.5,
-    celery: 2.8,
-    'bell pepper': 4.0,
-    'pepper': 4.0,
-    potato: 1.8,
-    garlic: 8.0,
-    'garlic, minced': 8.0,
-    'minced garlic': 8.0,
-    lemon: 3.0,
-    lime: 3.5,
-    chicken: 6.5,
-    'whole chicken': 4.5,
-    'chicken breast': 8.0,
-    'chicken thighs': 5.5,
-    beef: 12.0,
-    'ground beef': 8.0,
-    pork: 6.0,
-    rice: 2.5,
-    'cooked rice': 3.5,
-    'white rice': 2.5,
-    'brown rice': 3.0,
-    beans: 2.5,
-    flour: 1.5,
-    sugar: 1.2,
-    butter: 8.0,
-    cheese: 9.0,
-    salt: 0.8,
-    oil: 6.0,
-    'vegetable oil': 5.5,
-    'olive oil': 12.0,
-    'cooking oil': 5.5,
-    ketchup: 3.5,
-    'tomato ketchup': 3.5,
-    mustard: 3.0,
-    mayonnaise: 4.5,
+    onion: 4.4,
+    carrot: 3.8,
+    tomato: 6.6,
+    celery: 5.5,
+    'bell pepper': 8.8,
+    'pepper': 8.8,
+    potato: 3.3,
+    garlic: 15.4,
+    'garlic, minced': 15.4,
+    'minced garlic': 15.4,
+    lemon: 6.6,
+    lime: 7.7,
+    chicken: 15.4,
+    'whole chicken': 8.8,
+    'chicken breast': 19.8,
+    'chicken thighs': 13.2,
+    beef: 28.6,
+    'ground beef': 17.6,
+    pork: 13.2,
+    rice: 4.4,
+    'cooked rice': 6.6,
+    'white rice': 4.4,
+    'brown rice': 5.5,
+    beans: 4.4,
+    flour: 2.2,
+    sugar: 2.2,
+    butter: 17.6,
+    cheese: 22.0,
+    salt: 1.1,
+    oil: 11.0,
+    'vegetable oil': 8.8,
+    'olive oil': 26.4,
+    'cooking oil': 8.8,
+    ketchup: 6.6,
+    'tomato ketchup': 6.6,
+    mustard: 5.5,
+    mayonnaise: 8.8,
+    // Add more common ingredients
+    'anchovy fillets': 44.0,
+    'anchovies': 44.0,
+    'egg yolk': 22.0,
+    'egg yolks': 22.0,
+    'lemon juice': 11.0,
+    'fresh garlic': 15.4,
+    'parmesan cheese': 33.0,
+    'olive oil extra virgin': 30.0,
   },
   perEach: {
-    egg: 0.3,
-    lemon: 0.6,
-    lime: 0.5,
-    onion: 0.5,
-    'bell pepper': 1.5,
-    tomato: 0.8,
-    potato: 0.4,
+    egg: 0.5,
+    lemon: 1.2,
+    lime: 0.8,
+    onion: 0.8,
+    'bell pepper': 2.5,
+    tomato: 1.5,
+    potato: 0.6,
+    'garlic clove': 0.1,
+    'garlic': 0.1,
+    'anchovy fillet': 0.8,
   },
   perLiter: {
     milk: 1.0,
@@ -155,13 +167,14 @@ export function estimateIngredientCost(ing: Ingredient): number {
     return (PRICE_MAP.perEach[keyEach] || 0) * count
   }
 
-  // Fallback: generic produce rate $3.5/kg for better estimates
-  if (grams != null) return (grams / 1000) * 3.5
+  // Fallback: realistic produce rate $8/kg (doubled for realistic grocery prices)
+  if (grams != null) return (grams / 1000) * 8.0
   
-  // Final fallback based on common amounts - better estimates
-  if (ing.amount <= 2) return ing.amount * 3.5 // Small quantities like 2 onions = $7
-  if (ing.amount <= 5) return ing.amount * 2.5 // Medium quantities  
-  return ing.amount * 1.8 // Large quantities
+  // Final fallback based on common amounts - realistic grocery prices
+  if (ing.amount <= 1) return ing.amount * 2.5 // Single items like 1 onion = $2.50
+  if (ing.amount <= 3) return ing.amount * 1.8 // Small quantities like 3 eggs = $5.40
+  if (ing.amount <= 10) return ing.amount * 1.2 // Medium quantities  
+  return ing.amount * 0.8 // Large quantities with bulk discount
 }
 
 export function estimateRecipeCost(ingredients: Ingredient[], servings: number): { totalCost: number; costPerServing: number } {
