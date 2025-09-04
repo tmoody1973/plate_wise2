@@ -48,8 +48,6 @@ const PRICE_MAP: PriceMap = {
     // Add more common ingredients
     'anchovy fillets': 44.0,
     'anchovies': 44.0,
-    'egg yolk': 22.0,
-    'egg yolks': 22.0,
     'lemon juice': 11.0,
     'fresh garlic': 15.4,
     'parmesan cheese': 33.0,
@@ -57,6 +55,8 @@ const PRICE_MAP: PriceMap = {
   },
   perEach: {
     egg: 0.5,
+    'egg yolk': 0.25, // Half the cost of a whole egg since you use half
+    'egg white': 0.25, // Same logic
     lemon: 1.2,
     lime: 0.8,
     onion: 0.8,
@@ -66,6 +66,7 @@ const PRICE_MAP: PriceMap = {
     'garlic clove': 0.1,
     'garlic': 0.1,
     'anchovy fillet': 0.8,
+    'lemon juice': 0.1, // Small portion of a whole lemon
   },
   perLiter: {
     milk: 1.0,
@@ -110,6 +111,32 @@ function matchKey(name: string, dict: Record<string, any>): string | undefined {
   
   // First try exact match
   if (dict[lower]) return lower
+  
+  // Handle common variations and plurals for eggs
+  if (lower.includes('egg yolk') || lower === 'yolk' || lower === 'yolks') {
+    if (dict['egg yolk']) return 'egg yolk'
+  }
+  if (lower.includes('egg white') || lower === 'white' || lower === 'whites') {
+    if (dict['egg white']) return 'egg white'
+  }
+  
+  // Handle lemon/lime juice - people buy whole lemons/limes
+  if (lower.includes('lemon juice') || lower === 'lemon juice') {
+    if (dict['lemon juice']) return 'lemon juice'
+    if (dict['lemon']) return 'lemon' // fallback to whole lemon
+  }
+  if (lower.includes('lime juice') || lower === 'lime juice') {
+    if (dict['lime juice']) return 'lime juice'  
+    if (dict['lime']) return 'lime' // fallback to whole lime
+  }
+  
+  // Handle garlic derivatives
+  if (lower.includes('garlic clove') || lower.includes('clove of garlic')) {
+    if (dict['garlic clove']) return 'garlic clove'
+  }
+  if (lower.includes('minced garlic') || lower.includes('garlic, minced')) {
+    if (dict['garlic']) return 'garlic'
+  }
   
   // Then try to find if any key is contained in the name
   const found = Object.keys(dict).find(k => lower.includes(k))
