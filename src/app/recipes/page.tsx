@@ -8,20 +8,17 @@ const RecipeList = dynamic(() => import('@/components/recipes/RecipeList').then(
 const RecipeForm = dynamic(() => import('@/components/recipes/RecipeForm').then(m => m.RecipeForm), { ssr: false });
 const RecipeRecommendations = dynamic(() => import('@/components/recipes/RecipeRecommendations').then(m => m.RecipeRecommendations), { ssr: false });
 const RecipeInputModal = dynamic(() => import('@/components/recipes/RecipeInputModal').then(m => m.RecipeInputModal), { ssr: false });
-const SpoonacularSearch = dynamic(() => import('@/components/recipes/SpoonacularSearch').then(m => m.SpoonacularSearch), { ssr: false });
-const TavilySearch = dynamic(() => import('@/components/recipes/TavilySearch').then(m => m.TavilySearch), { ssr: false });
 const OpenAIWebSearch = dynamic(() => import('@/components/recipes/OpenAIWebSearch').then(m => m.OpenAIWebSearch), { ssr: false });
 import { useAuthContext } from '@/contexts/AuthContext';
 import type { Recipe } from '@/types';
 import type { CreateRecipeInput } from '@/lib/recipes/recipe-database-service';
-import type { SpoonacularRecipe } from '@/lib/external-apis/spoonacular-service';
 import { useToast } from '@/components/ui/toast';
 
 export default function RecipesPage() {
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [showInputModal, setShowInputModal] = useState(false);
   const [showSpoonacularSearch, setShowSpoonacularSearch] = useState(false);
-  const [discoverSource, setDiscoverSource] = useState<'spoonacular' | 'tavily' | 'openai'>('spoonacular');
+  // Simplify discover view to a single AI web search (OpenAI)
   const [editingRecipe, setEditingRecipe] = useState<Recipe | null>(null);
   const [parsedRecipe, setParsedRecipe] = useState<CreateRecipeInput | null>(null);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
@@ -75,45 +72,7 @@ export default function RecipesPage() {
     console.log('Rate recipe:', recipeId);
   };
 
-  const handleSpoonacularRecipeSelect = (recipe: SpoonacularRecipe) => {
-    // Convert Spoonacular recipe to our format for editing/saving
-    const convertedRecipe: CreateRecipeInput = {
-      title: recipe.title,
-      description: recipe.summary,
-      culturalOrigin: recipe.cuisines || [],
-      cuisine: recipe.cuisines[0] || 'international',
-      ingredients: recipe.extendedIngredients?.map(ing => ({
-        id: ing.id.toString(),
-        name: ing.name,
-        amount: ing.amount,
-        unit: ing.unit,
-        culturalName: ing.nameClean || ing.name,
-        substitutes: [],
-        costPerUnit: 0,
-        availability: [],
-      })) || [],
-      instructions: recipe.analyzedInstructions?.flatMap(instruction =>
-        instruction.steps.map(step => ({
-          step: step.number,
-          description: step.step,
-        }))
-      ) || [],
-      metadata: {
-        servings: recipe.servings,
-        prepTime: recipe.preparationMinutes || 0,
-        cookTime: recipe.cookingMinutes || 0,
-        totalTime: recipe.readyInMinutes,
-        difficulty: 'medium' as const, // Default difficulty
-        culturalAuthenticity: 7, // Default score
-      },
-      tags: [...(recipe.cuisines || []), ...(recipe.dishTypes || [])],
-      source: 'spoonacular' as const,
-    };
-
-    setParsedRecipe(convertedRecipe);
-    setShowSpoonacularSearch(false);
-    setShowCreateForm(true);
-  };
+  // Spoonacular/Tavily sources removed for simplicity.
 
   async function handleBackfill() {
     if (!user?.id) return
@@ -157,18 +116,8 @@ export default function RecipesPage() {
                 Back to My Recipes
               </button>
             </div>
-            <div className="flex space-x-2">
-              <button onClick={() => setDiscoverSource('spoonacular')} className={`px-3 py-1 rounded ${discoverSource==='spoonacular'?'bg-gray-900 text-white':'border border-gray-300 text-gray-700'}`}>API</button>
-              <button onClick={() => setDiscoverSource('tavily')} className={`px-3 py-1 rounded ${discoverSource==='tavily'?'bg-gray-900 text-white':'border border-gray-300 text-gray-700'}`}>Web (Tavily)</button>
-              <button onClick={() => setDiscoverSource('openai')} className={`px-3 py-1 rounded ${discoverSource==='openai'?'bg-gray-900 text-white':'border border-gray-300 text-gray-700'}`}>Web (OpenAI)</button>
-            </div>
-            {discoverSource === 'spoonacular' ? (
-              <SpoonacularSearch onRecipeSelect={handleSpoonacularRecipeSelect} />
-            ) : discoverSource === 'tavily' ? (
-              <TavilySearch onImported={(recipe)=>{ setParsedRecipe(recipe); setShowCreateForm(true); }} />
-            ) : (
-              <OpenAIWebSearch />
-            )}
+            <div className="text-sm text-gray-600">AI Web Search</div>
+            <OpenAIWebSearch />
           </div>
         ) : (
           <div className="space-y-8">

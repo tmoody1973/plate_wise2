@@ -115,6 +115,16 @@ export default function RecipeDetailPage() {
   const quickRef = React.useRef<HTMLDivElement | null>(null);
 
   const [refining, setRefining] = useState(false)
+  // Lightweight mode to speed up local dev: skip heavy pricing widgets
+  const lightMode = useMemo(() => {
+    try {
+      if (typeof window !== 'undefined') {
+        const u = new URL(window.location.href)
+        if (u.searchParams.get('light') === '1') return true
+      }
+    } catch {}
+    return process.env.NEXT_PUBLIC_LIGHT_MODE === '1'
+  }, [])
 
   const handleRefineFromSource = async () => {
     if (!recipe) return
@@ -958,8 +968,8 @@ export default function RecipeDetailPage() {
         </div>
       </div>
 
-      {/* Store Optimization Panel */}
-      {recipe?.ingredients && recipe.ingredients.length > 0 && (
+      {/* Store Optimization Panel (skip in light mode) */}
+      {!lightMode && recipe?.ingredients && recipe.ingredients.length > 0 && (
         <StoreOptimizerPanel
           ingredients={recipe.ingredients.map(ing => ({
             name: ing.name,
@@ -994,8 +1004,8 @@ export default function RecipeDetailPage() {
         />
       )}
 
-      {/* Enhanced Recipe Pricing - Mobile-friendly with shopping list */}
-      {pricingSource === 'perplexity' && perplexityPanelData.length > 0 ? (
+      {/* Enhanced Recipe Pricing - Mobile-friendly with shopping list (skip in light mode) */}
+      {!lightMode && pricingSource === 'perplexity' && perplexityPanelData.length > 0 ? (
         <EnhancedPricingPanel 
           data={perplexityPanelData}
           onSearchStores={async (ingredient, ingredientIndex) => {

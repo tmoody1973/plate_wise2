@@ -31,7 +31,6 @@ export function PerplexityRecipeSearch({
   const [includeIngredients, setIncludeIngredients] = useState('')
   const [excludeIngredients, setExcludeIngredients] = useState('')
   const [maxResults, setMaxResults] = useState(3)
-
   const searchMutation = usePerplexityRecipeSearch()
 
   const handleSearch = () => {
@@ -75,9 +74,7 @@ export function PerplexityRecipeSearch({
       <div className="flex items-center space-x-2 text-orange-600">
         <Sparkles className="w-5 h-5" />
         <h3 className="font-semibold">AI Recipe Search</h3>
-        <span className="text-xs bg-orange-100 text-orange-800 px-2 py-1 rounded-full">
-          Powered by Perplexity
-        </span>
+        <span className="text-xs bg-orange-100 text-orange-800 px-2 py-1 rounded-full">Powered by Perplexity</span>
       </div>
 
       {/* Main search */}
@@ -226,16 +223,16 @@ export function PerplexityRecipeSearch({
         </div>
       )}
 
-      {searchMutation.isSuccess && searchMutation.data && (
+      {searchMutation.isSuccess && searchMutation.data ? (
         <div className="text-green-600 text-sm bg-green-50 p-3 rounded-lg">
-          ✅ Found {searchMutation.data.recipes.length} recipe(s)! 
+          ✅ Found {searchMutation.data.recipes.length} recipe(s)!
           {searchMutation.data.meta.sources.length > 0 && (
             <span className="ml-2">
               Sources: {searchMutation.data.meta.sources.length} websites
             </span>
           )}
         </div>
-      )}
+      ) : null}
     </div>
   )
 }

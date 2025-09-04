@@ -113,6 +113,73 @@ type PricingData = {
   sourceUrl?: string
 }
 
+// --- Helper utilities for safer matching and price coercion ---
+function tokenize(s?: string): string[] {
+  if (!s) return []
+  return String(s).toLowerCase().replace(/[^a-z0-9\s]/g, ' ').split(/\s+/).filter(Boolean)
+}
+
+function jaccard(a: string, b: string): number {
+  const A = new Set(tokenize(a))
+  const B = new Set(tokenize(b))
+  if (A.size === 0 && B.size === 0) return 0
+  let inter = 0
+  for (const t of A) if (B.has(t)) inter++
+  const union = A.size + B.size - inter
+  return union > 0 ? inter / union : 0
+}
+
+// Choose the best matching API item for an ingredient and mark the index as used
+function pickBestMatch(
+  items: any[] | null | undefined,
+  ingredientName: string,
+  usedIdx: Set<number>
+): { item: any | undefined; index: number } {
+  if (!items || items.length === 0) return { item: undefined, index: -1 }
+  let bestIndex = -1
+  let bestScore = -1
+  const target = ingredientName || ''
+  for (let i = 0; i < items.length; i++) {
+    if (usedIdx.has(i)) continue
+    const it = items[i]
+    const s1 = jaccard(String(it?.ingredient || ''), target)
+    const s2 = jaccard(String(it?.productName || ''), target)
+    const score = Math.max(s1, s2)
+    if (score > bestScore) { bestScore = score; bestIndex = i }
+  }
+  // Require a minimal similarity; otherwise fall back to first unused index to avoid misalignment
+  if (bestIndex === -1 || bestScore < 0.15) {
+    const fallback = [...Array(items.length).keys()].find(i => !usedIdx.has(i)) ?? -1
+    return { item: fallback >= 0 ? items[fallback] : undefined, index: fallback }
+  }
+  return { item: items[bestIndex], index: bestIndex }
+}
+
+// Coerce suspiciously small package prices using unitPrice and packageSize
+function coercePackagePrice(opt: PricingData): number | undefined {
+  const pkg = normalizePrice(opt.packagePrice)
+  if (pkg !== undefined && pkg >= 1) return pkg
+  const parsed = parseUnitPriceLabel(opt.unitPrice)
+  const pack = parsePackSize(opt.packageSize)
+  if (!parsed || !pack) return pkg // cannot improve
+  // Convert package size to the unit of the unit price, then multiply
+  const u = parsed.unit.toLowerCase()
+  let qtyInUnit: number | null = null
+  try {
+    if (/\b(lb|pound)\b/.test(u)) qtyInUnit = convert(pack.qty, pack.unit, 'lb')
+    else if (/\b(fl\s*oz|fluid)\b/.test(u)) qtyInUnit = convert(pack.qty, pack.unit, 'fl_oz')
+    else if (/\boz\b/.test(u)) qtyInUnit = convert(pack.qty, pack.unit, 'oz')
+    else if (/\b(g|gram)\b/.test(u)) qtyInUnit = convert(pack.qty, pack.unit, 'g')
+    else if (/\b(ml|milliliter)\b/.test(u)) qtyInUnit = convert(pack.qty, pack.unit, 'ml')
+    else if (/\b(each|ct|count|piece|bulb|clove|onion)\b/.test(u)) qtyInUnit = Math.max(1, Math.ceil(pack.qty))
+  } catch {}
+  if (qtyInUnit == null || !isFinite(qtyInUnit) || qtyInUnit <= 0) return pkg
+  const candidate = parsed.price * qtyInUnit
+  // Accept reasonable candidates only
+  if (isFinite(candidate) && candidate > 0.75 && candidate < 2000) return candidate
+  return pkg
+}
+
 // Run pricing on Edge to reduce cold starts and improve latency
 export const runtime = 'edge'
 export const preferredRegion = ['cle1']
@@ -1196,7 +1263,7 @@ export async function POST(request: NextRequest) {
                 substitutes: [],
                 costPerUnit: 0,
                 availability: []
-              } as Ingredient)
+              } as Ingredient, location)
               results.push({
                 id: results.length + 1,
                 original: ingName(ing),
@@ -1254,8 +1321,8 @@ export async function POST(request: NextRequest) {
             arr = []
           }
 
-          // Track used product names to prevent duplicates
-          const usedProductNames = new Set<string>()
+          // Track used indices to prevent reusing the same AI row
+          const usedIndices = new Set<number>()
           
           for (let i = 0; i < batch.length; i++) {
             const ing = batch[i]!
@@ -1267,33 +1334,19 @@ export async function POST(request: NextRequest) {
               storeName: d?.storeName
             })))
             
-            // Try to find a match that hasn't been used and matches the ingredient
-            let match = (arr || []).find(d => 
-              d?.ingredient && 
-              String(d.ingredient).toLowerCase().includes(ingredientName.toLowerCase()) &&
-              !usedProductNames.has(d.productName || '')
-            ) || (arr || [])[i]
-            
-            // If we got a match but it's a duplicate product name, try to find an unused one
-            if (match && usedProductNames.has(match.productName || '')) {
-              const alternativeMatch = (arr || []).find(d => 
-                d && !usedProductNames.has(d.productName || '')
-              )
-              if (alternativeMatch) {
-                console.log(`⚠️ Duplicate product "${match.productName}" detected, using alternative`)
-                match = alternativeMatch
-              }
-            }
+            // Use robust matching against the AI rows
+            const picked = pickBestMatch(arr || [], ingredientName, usedIndices)
+            const match = picked.item
             
             if (match) {
-              // Mark this product as used
-              if (match.productName) {
-                usedProductNames.add(match.productName)
-              }
+              // Mark this row as used
+              if (picked.index >= 0) usedIndices.add(picked.index)
               console.log(`✅ Found match for "${ingredientName}":`, JSON.stringify(match, null, 2))
               const sanitized = await sanitizeOption(match as PricingData, location, city)
-              const portion = computePortionCost(sanitized, ingAmount(ing) ?? 1, ingUnit(ing) ?? 'each', ingName(ing))
-              const pkg = normalizePrice(sanitized.packagePrice)
+              // Coerce obviously wrong package prices (e.g., unit price mistaken for package)
+              const coercedPkg = coercePackagePrice(sanitized)
+              const portion = computePortionCost({ ...sanitized, packagePrice: coercedPkg ?? sanitized.packagePrice }, ingAmount(ing) ?? 1, ingUnit(ing) ?? 'each', ingName(ing))
+              const pkg = coercedPkg ?? normalizePrice(sanitized.packagePrice)
               results.push({
                 id: results.length + 1,
                 original: ingName(ing),
@@ -1321,7 +1374,7 @@ export async function POST(request: NextRequest) {
                 substitutes: [],
                 costPerUnit: 0,
                 availability: []
-              } as Ingredient)
+              } as Ingredient, location)
               results.push({
                 id: results.length + 1,
                 original: ingredientName,
@@ -1450,7 +1503,7 @@ export async function POST(request: NextRequest) {
             substitutes: [],
             costPerUnit: 0,
             availability: []
-          } as Ingredient)
+          } as Ingredient, location)
           return {
             id: i + 1,
             original: ingName(ing),
@@ -1529,7 +1582,7 @@ export async function POST(request: NextRequest) {
       console.log('📋 Sample item:', pricingData[0])
 
       // Process each pricing result with deduplication
-      const usedProductNames = new Set<string>()
+      const usedIndices = new Set<number>()
       for (let i = 0; i < ingredients.length; i++) {
         const ingredient = ingredients[i]!
         const ingredientName = ingName(ingredient)
@@ -1541,23 +1594,9 @@ export async function POST(request: NextRequest) {
           packagePrice: data.packagePrice
         })))
         
-        // Try to find a match that hasn't been used and matches the ingredient
-        let matchingPriceData = pricingData.find(data => 
-          data.ingredient && 
-          data.ingredient.toLowerCase().includes(ingredientName.toLowerCase()) &&
-          !usedProductNames.has(data.productName || '')
-        ) || pricingData[i] // fallback to index matching
-        
-        // If we got a match but it's a duplicate product name, try to find an unused one
-        if (matchingPriceData && usedProductNames.has(matchingPriceData.productName || '')) {
-          const alternativeMatch = pricingData.find(data => 
-            data && !usedProductNames.has(data.productName || '')
-          )
-          if (alternativeMatch) {
-            console.log(`⚠️ Duplicate product "${matchingPriceData.productName}" detected for "${ingredientName}", using alternative`)
-            matchingPriceData = alternativeMatch
-          }
-        }
+        // Use robust matcher to select the best unused row for this ingredient
+        const picked = pickBestMatch(pricingData as any[], ingredientName, usedIndices)
+        let matchingPriceData = picked.item as PricingData | undefined
 
         console.log(`🎯 Selected match for "${ingredientName}":`, matchingPriceData ? {
           ingredient: matchingPriceData.ingredient,
@@ -1566,10 +1605,8 @@ export async function POST(request: NextRequest) {
         } : 'NO MATCH')
 
         if (matchingPriceData) {
-          // Mark this product as used to prevent duplicates
-          if (matchingPriceData.productName) {
-            usedProductNames.add(matchingPriceData.productName)
-          }
+          // Mark this row as used to prevent duplicates
+          if (picked.index >= 0) usedIndices.add(picked.index)
           
           const sanitized = await sanitizeOption(matchingPriceData, location, city)
           console.log(`🏪 Store data for ingredient "${ingName(ingredient)}":`, {
@@ -1581,7 +1618,8 @@ export async function POST(request: NextRequest) {
           })
           
           // Always validate portion cost using our calculation logic
-          const portionCost = computePortionCost(sanitized, ingAmount(ingredient) ?? 1, ingUnit(ingredient) ?? 'each', ingName(ingredient))
+          const coercedPkgForPortion = coercePackagePrice(sanitized)
+          const portionCost = computePortionCost({ ...sanitized, packagePrice: coercedPkgForPortion ?? sanitized.packagePrice }, ingAmount(ingredient) ?? 1, ingUnit(ingredient) ?? 'each', ingName(ingredient))
           
           // Get multiple store options for global ingredients
           let storeOptions: StoreOption[] = []
@@ -1599,7 +1637,8 @@ export async function POST(request: NextRequest) {
           // Get ingredient alternatives
           const alternatives = await findIngredientAlternatives(ingName(ingredient), culturalContext)
 
-          const packagePriceNum = normalizePrice(sanitized?.packagePrice)
+          const coercedPkg = coercePackagePrice(sanitized)
+          const packagePriceNum = coercedPkg ?? normalizePrice(sanitized?.packagePrice)
           const unitPriceNum = normalizePrice(sanitized?.unitPrice)
 
           const result: PricingResult = {
