@@ -132,9 +132,44 @@ class PerplexityRecipeSearchService {
           temperature: 0.2, // Low randomness for concise JSON
           return_citations: true,
           search_domain_filter: [
+            // Mainstream recipe sites
             'allrecipes.com', 'food.com', 'epicurious.com', 'simplyrecipes.com',
             'seriouseats.com', 'bonappetit.com', 'foodnetwork.com', 'tasteofhome.com',
-            'delish.com', 'foodandwine.com'
+            'delish.com', 'foodandwine.com',
+            // African cuisine
+            'africanbites.com', 'afrolems.com', 'allnigerianrecipes.com', 'immaculatebites.com',
+            'ethiopianfood.guide', 'ethiopianrecipes.net', 'xsomali.com', 'somalifoodblog.com',
+            // Asian cuisine
+            'bunbobae.com', 'justonecookbook.com', 'japanesecooking101.com', 'cookpad.com',
+            'madewithlau.com', 'vickypham.com', 'hungryhuy.com',
+            // Latin American & Caribbean
+            'caribbeanpot.com', 'cheflolaskitchen.com', 'cocinacriolla.org', 'mexicoinmykitchen.com',
+            'patijinich.com', 'isabeleats.com', 'elboricua.com', 'thenoshery.com', 'latinamommeals.com',
+            'cookingwithria.com', 'perudelights.com', 'latinamericancooking.com', 'jamaicanbikkle.com',
+            'jamaicanfoodsandrecipes.com', 'comidavenezolana.com', 'buenprovecho.hn',
+            // Eastern European
+            'polishhousewife.com', 'polonist.com', 'olgasflavorfactory.com', 'ruscuisine.com',
+            'ukrainianclassickitchen.ca', 'savaskitchen.com', 'anna-voloshyna.com', 'etnocook.com',
+            'klopotenko.com', 'myodessakitchen.com', 'proborsch.com',
+            // Middle Eastern & Mediterranean
+            'tasteofbeirut.com', 'themediterraneandish.com', 'mypersiankitchen.com',
+            'ozlemsturkishtable.com', 'givecipe.com', 'cookingorgeous.com', 'turkishfoodie.com',
+            'munatycooking.com', 'jeddahmom.com', 'palestineinadish.com',
+            // South Asian
+            'swasthisrecipes.com', 'vegrecipesofindia.com', 'archanaskitchen.com',
+            'kannammacooks.com', 'sinfullyspicy.com', 'ministryofcurry.com',
+            'simpleindianrecipes.com', 'flourandspiceblog.com', 'pakistaneats.com',
+            // Haitian & Native American
+            'petersfoodadventures.com', 'chawjcreations.com', 'loveforhaitianfood.com',
+            'savorythoughts.com', 'haitian-recipes.com', 'natifs.org', 'sioux-chef.com',
+            // European & Other
+            'greatbritishchefs.com', 'whats4eats.com', 'thegermankitchen.com',
+            'bettybossi.ch', 'marmiton.org', 'lesfoodies.com', 'icasvori.is',
+            // Brazilian & Portuguese
+            'receitas.globo.com', 'panelinha.com.br', 'cozinhabrasileira.com',
+            'receitinhas.com.br', 'javirecipes.com',
+            // Soul Food
+            'thesoulfoodpot.com', 'urbanfarmandkitchen.com'
           ]
         }),
         signal: controller.signal
