@@ -1072,8 +1072,9 @@ export async function POST(request: NextRequest) {
           temperature: 0.1,
           top_p: 0.9,
           return_citations: false,
+          // Perplexity limit: max 20 domains
           search_domain_filter: [
-            'walmart.com','target.com','kroger.com','publix.com','safeway.com','albertsons.com','aldi.us','costco.com','samsclub.com','wholefoodsmarket.com','traderjoes.com','meijer.com','heb.com','foodlion.com','giantfood.com','stopandshop.com','winndixie.com','ralphs.com','vons.com','fredmeyer.com','harristeeter.com','hy-vee.com','wegmans.com'
+            'walmart.com','target.com','kroger.com','publix.com','safeway.com','albertsons.com','aldi.us','costco.com','samsclub.com','wholefoodsmarket.com','traderjoes.com','meijer.com','heb.com','foodlion.com','giantfood.com','stopandshop.com','winndixie.com','ralphs.com','vons.com','fredmeyer.com'
           ]
         }),
         signal: controller.signal
