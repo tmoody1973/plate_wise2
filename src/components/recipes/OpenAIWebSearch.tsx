@@ -9,12 +9,14 @@ import { recipeService, type CreateRecipeInput } from '@/lib/recipes'
 import { createUniqueRecipeSlug } from '@/lib/utils/slug'
 import { useProfileSetup } from '@/hooks/useProfileSetup'
 import { normalizeIngredients } from '@/lib/recipes/ingredient-normalizer'
+import PerplexityRecipeStreamSearch from './PerplexityRecipeStreamSearch'
 
 type Props = {
   className?: string
 }
 
 export function OpenAIWebSearch({ className }: Props) {
+  const [searchMode, setSearchMode] = useState<'openai' | 'perplexity-stream'>('openai')
   const [query, setQuery] = useState('')
   const [country, setCountry] = useState('')
   const [include, setInclude] = useState('')
@@ -354,8 +356,50 @@ export function OpenAIWebSearch({ className }: Props) {
 
   return (
     <div className={className}>
+      {/* Search Mode Toggle */}
+      <div className="mb-4">
+        <div className="flex items-center justify-between mb-2">
+          <h2 className="text-xl font-semibold">AI Recipe Discovery</h2>
+          <div className="flex space-x-1 bg-gray-100 rounded-lg p-1">
+            <button
+              onClick={() => setSearchMode('openai')}
+              className={`px-3 py-1 rounded-md text-sm font-medium transition-colors ${
+                searchMode === 'openai'
+                  ? 'bg-white text-gray-900 shadow-sm'
+                  : 'text-gray-600 hover:text-gray-900'
+              }`}
+            >
+              OpenAI Web Search
+            </button>
+            <button
+              onClick={() => setSearchMode('perplexity-stream')}
+              className={`px-3 py-1 rounded-md text-sm font-medium transition-colors ${
+                searchMode === 'perplexity-stream'
+                  ? 'bg-white text-gray-900 shadow-sm'
+                  : 'text-gray-600 hover:text-gray-900'
+              }`}
+            >
+              Live Perplexity Search
+            </button>
+          </div>
+        </div>
+        <p className="text-sm text-gray-600">
+          {searchMode === 'openai' 
+            ? 'Advanced web search with structured data extraction and batch processing'
+            : 'Real-time recipe discovery with progressive results - see recipes appear one by one as they\'re found!'
+          }
+        </p>
+      </div>
+
+      {/* Perplexity Streaming Search */}
+      {searchMode === 'perplexity-stream' ? (
+        <PerplexityRecipeStreamSearch 
+          showFilters={true}
+        />
+      ) : (
+        
       <div className="rounded-lg border border-gray-200 p-4 bg-white">
-        <h2 className="text-xl font-semibold mb-3">AI Web Search (OpenAI)</h2>
+        <h3 className="text-lg font-medium mb-3">OpenAI Web Search</h3>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
           <input
             className="border rounded px-3 py-2"
@@ -757,8 +801,8 @@ export function OpenAIWebSearch({ className }: Props) {
             ) : null}
           </div>
         )}
-      </div>
-      {/* Mini modal for Public/Private selection */}
+      
+        {/* Mini modal for Public/Private selection */}
       {showModal && (
         <div className="fixed inset-0 bg-black/30 z-50 flex items-center justify-center" onClick={() => setShowModal(false)}>
           <div className="bg-white rounded-lg shadow-lg w-full max-w-md p-5" onClick={e => e.stopPropagation()}>
@@ -806,6 +850,8 @@ export function OpenAIWebSearch({ className }: Props) {
             </div>
           </div>
         </div>
+      )}
+      </div>
       )}
     </div>
   )
