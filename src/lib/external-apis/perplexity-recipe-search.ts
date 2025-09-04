@@ -106,8 +106,8 @@ class PerplexityRecipeSearchService {
       
       // Create timeout controller with a conservative cap to avoid Vercel timeouts
       const controller = new AbortController();
-      // Edge Functions allow ~30s; keep a safe buffer in production
-      const timeoutMs = process.env.NODE_ENV === 'development' ? 60000 : 25000;
+      // Reduced timeout for faster response - fail fast if slow
+      const timeoutMs = process.env.NODE_ENV === 'development' ? 60000 : 15000;
       const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
       
       const response = await fetch(this.baseURL, {
@@ -128,11 +128,19 @@ class PerplexityRecipeSearchService {
               content: prompt
             }
           ],
-          max_tokens: 2000, // Increased for detailed recipes
+          max_tokens: 1200, // Reduced for faster response while maintaining quality
           temperature: 0.2, // Low randomness for concise JSON
           return_citations: true,
-          stream: false // Keep non-streaming for now - streaming needs different parsing
-          // Removed search_domain_filter for faster response - let Perplexity search all sites
+          stream: false, // Keep non-streaming for now - streaming needs different parsing
+          // Using a smaller domain filter for balance of speed and quality
+          search_domain_filter: [
+            // Top mainstream recipe sites only (reduced from 80+ to 20)
+            'allrecipes.com', 'food.com', 'epicurious.com', 'simplyrecipes.com',
+            'seriouseats.com', 'bonappetit.com', 'foodnetwork.com', 'tasteofhome.com',
+            'delish.com', 'foodandwine.com', 'thekitchn.com', 'bettycrocker.com',
+            'myrecipes.com', 'cookinglight.com', 'eatingwell.com', 'yummly.com',
+            'budgetbytes.com', 'cafedelites.com', 'natashaskitchen.com', 'recipetineats.com'
+          ]
         }),
         signal: controller.signal
       });
