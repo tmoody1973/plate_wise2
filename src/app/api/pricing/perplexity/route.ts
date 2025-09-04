@@ -1023,6 +1023,7 @@ export async function POST(request: NextRequest) {
         city,
         defaultStore: defaultStoreName,
         preferredStores,
+        compact: true,
       })
 
       console.log('🌐 Making batch Perplexity API request for', ingredients.length, 'ingredients');
@@ -1050,7 +1051,7 @@ export async function POST(request: NextRequest) {
               content: prompt
             }
           ],
-          max_tokens: 1200, // balanced for multi-ingredient without risking timeout
+          max_tokens: 900, // compact mode; reduce tokens to avoid timeouts
           temperature: 0.1,
           top_p: 0.9,
           return_citations: false,
