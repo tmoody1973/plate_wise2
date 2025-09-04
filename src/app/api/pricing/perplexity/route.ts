@@ -906,29 +906,11 @@ async function sanitizeOption(opt: PricingData, location: string, city: string):
   let storeName = sanitizeText(opt.storeName)
   let storeAddress = sanitizeText(opt.storeAddress)
   
-  // If store is not valid for location, replace with a generic mainstream store
+  // If store is not valid for location, keep original name but mark/unset address; do not substitute another brand
   if (storeName && !isStoreValidForLocation(storeName, location, city)) {
-    console.log(`⚠️ Invalid store "${storeName}" for location ${city || location}, replacing with valid alternative`)
-    
-    // Default to Walmart or Target which are available nationwide
-    const state = getStateFromLocation(location, city)
-    if (state === 'WI') {
-      // For global ingredients in Wisconsin, use Asian International Market or Cermak
-      if (opt.storeType === 'global' || opt.storeType === 'specialty') {
-        storeName = 'Asian International Market'
-        // Get verified address
-        const verifiedAddress = await getVerifiedStoreAddress('Asian International Market', city, location)
-        storeAddress = verifiedAddress.address
-      } else {
-        storeName = 'Pick \'n Save'
-        // Get verified address
-        const verifiedAddress = await getVerifiedStoreAddress('Pick \'n Save', city, location)
-        storeAddress = verifiedAddress.address
-      }
-    } else {
-      storeName = 'Walmart'
-      storeAddress = `${city || location}`
-    }
+    console.log(`⚠️ Store "${storeName}" not verified for ${city || location}; keeping name, attempting address lookup`)
+    const verifiedAddress = await getVerifiedStoreAddress(storeName, city, location)
+    storeAddress = verifiedAddress.address
   } else if (storeName) {
     // Store is valid, but let's try to get a verified address
     const verifiedAddress = await getVerifiedStoreAddress(storeName, city, location)

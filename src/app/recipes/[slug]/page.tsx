@@ -352,64 +352,33 @@ export default function RecipeDetailPage() {
         console.log('✅ Using Perplexity response format');
         setPricingSource('perplexity')
         
-        // Helper function to estimate price if Perplexity returns $0
-        const getEstimatedPrice = (ingredientName: string): { packagePrice: number, portionCost: number } => {
-          const name = ingredientName.toLowerCase();
-          let packagePrice = 4; // default
-          
-          if (name.includes('salt') || name.includes('pepper')) packagePrice = 2;
-          else if (name.includes('oil') || name.includes('butter')) packagePrice = 4;
-          else if (name.includes('flour') || name.includes('sugar')) packagePrice = 3;
-          else if (name.includes('meat') || name.includes('chicken') || name.includes('beef')) packagePrice = 8;
-          else if (name.includes('cheese')) packagePrice = 6;
-          else if (name.includes('milk')) packagePrice = 4;
-          else if (name.includes('egg')) packagePrice = 3;
-          else if (name.includes('vegetable') || name.includes('onion') || name.includes('tomato')) packagePrice = 2;
-          else if (name.includes('herb') || name.includes('spice')) packagePrice = 3;
-          else if (name.includes('pie') || name.includes('crust')) packagePrice = 4;
-          else if (name.includes('gravy') || name.includes('sauce')) packagePrice = 2;
-          else if (name.includes('can') || name.includes('canned')) packagePrice = 2;
-          
-          return {
-            packagePrice,
-            portionCost: Math.round((packagePrice * 0.25) * 100) / 100 // Assume 1/4 of package per recipe
-          };
-        };
-        
-        const perplexityResults = json.results.map((result: any, index: number) => {
-          const hasValidPrice = (result.packagePrice && result.packagePrice > 0) || (result.estimatedCost && result.estimatedCost > 0);
-          
-          let finalPrices;
-          if (!hasValidPrice) {
-            // Use intelligent estimation if Perplexity didn't return valid prices
-            finalPrices = getEstimatedPrice(result.original);
-            console.log(`💡 Using estimated pricing for ${result.original}:`, finalPrices);
-          } else {
-            finalPrices = {
-              packagePrice: result.packagePrice || result.estimatedCost || 0,
-              portionCost: result.portionCost || result.estimatedCost || 0
-            };
-          }
-          
+        const perplexityResults = json.results.map((result: any) => {
+          // Trust server-side computed prices; only estimate if both are missing
+          const portion = (typeof result.portionCost === 'number' && result.portionCost > 0)
+            ? result.portionCost
+            : (typeof result.estimatedCost === 'number' ? result.estimatedCost : 0)
+          const pkgPrice = (typeof result.packagePrice === 'number' && result.packagePrice > 0)
+            ? result.packagePrice
+            : 0
           return {
             name: result.original,
-            unitPrice: finalPrices.packagePrice,
-            estimatedCost: finalPrices.portionCost,
+            unitPrice: pkgPrice,
+            estimatedCost: portion,
             product: {
-              description: result.matched || hasValidPrice ? 'Perplexity verified' : 'Estimated pricing',
+              description: result.matched || 'Perplexity',
               items: [{
                 price: { 
-                  regular: finalPrices.packagePrice,
+                  regular: pkgPrice,
                   promo: null 
                 },
                 size: result.packageSize || ''
               }]
             },
-            confidence: hasValidPrice ? (result.confidence || 0.8) : 0.6,
+            confidence: result.confidence || 0.8,
             packages: result.packages || 1,
             packageSize: result.packageSize || 'package',
-            portionCost: finalPrices.portionCost,
-            packagePrice: finalPrices.packagePrice,
+            portionCost: portion,
+            packagePrice: pkgPrice,
             topCandidates: []
           };
         });
@@ -426,11 +395,11 @@ export default function RecipeDetailPage() {
                 storeName: r.storeName || 'Store',
                 productName: r.matched || r.productName || 'Product',
                 packageSize: r.packageSize || 'package',
-                packagePrice: Number(r.packagePrice || r.estimatedCost || 0) || 0,
+                packagePrice: Number(r.packagePrice || 0) || 0,
                 unitPrice: r.unitPrice ?? (typeof r.packagePrice === 'number' && r.packageSize ? `$${r.packagePrice.toFixed(2)}/${r.packageSize}` : 'N/A'),
-                portionCost: Number(r.portionCost || r.estimatedCost || 0) || 0,
+                portionCost: Number(r.portionCost || 0) || 0,
                 storeType: r.storeType || 'mainstream',
-                storeAddress: r.storeAddress,
+                storeAddress: r.storeAddress || (userLocation.city ? `${userLocation.city}, ${userLocation.state}` : ''),
                 sourceUrl: r.sourceUrl,
               }]
           // pick default selection index (match user's default store name if possible)
