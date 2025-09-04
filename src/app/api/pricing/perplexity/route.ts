@@ -905,6 +905,37 @@ async function sanitizeOption(opt: PricingData, location: string, city: string):
   // Validate store for location
   let storeName = sanitizeText(opt.storeName)
   let storeAddress = sanitizeText(opt.storeAddress)
+  let sourceUrl = sanitizeText(opt.sourceUrl)
+
+  // If storeName missing, try to infer from sourceUrl domain (major chains)
+  if (!storeName && sourceUrl) {
+    try {
+      const host = new URL(sourceUrl).hostname.replace(/^www\./, '')
+      const map: Record<string,string> = {
+        'walmart.com': 'Walmart',
+        'target.com': 'Target',
+        'kroger.com': 'Kroger',
+        'publix.com': 'Publix',
+        'safeway.com': 'Safeway',
+        'albertsons.com': 'Albertsons',
+        'aldi.us': 'Aldi',
+        'costco.com': 'Costco',
+        'samsclub.com': "Sam's Club",
+        'wholefoodsmarket.com': 'Whole Foods Market',
+        'traderjoes.com': "Trader Joe's",
+        'meijer.com': 'Meijer',
+        'heb.com': 'H‑E‑B',
+        'foodlion.com': 'Food Lion',
+        'giantfood.com': 'Giant',
+        'stopandshop.com': 'Stop & Shop',
+        'winndixie.com': 'Winn‑Dixie',
+        'ralphs.com': 'Ralphs',
+        'vons.com': 'Vons',
+        'fredmeyer.com': 'Fred Meyer',
+      }
+      if (map[host]) storeName = map[host]
+    } catch {}
+  }
   
   // If store is not valid for location, keep original name but mark/unset address; do not substitute another brand
   if (storeName && !isStoreValidForLocation(storeName, location, city)) {
@@ -928,7 +959,7 @@ async function sanitizeOption(opt: PricingData, location: string, city: string):
     portionCost: portion ?? 0,
     storeType: sanitizeText(opt.storeType),
     storeAddress,
-    sourceUrl: sanitizeText(opt.sourceUrl),
+    sourceUrl,
   }
 }
 
@@ -1015,6 +1046,119 @@ export async function POST(request: NextRequest) {
         amount: ingAmount(ingredient) ?? 1,
         unit: ingUnit(ingredient) ?? 'unit'
       }))
+
+      // If too many ingredients, process in smaller batches to avoid timeouts
+      const BATCH_SIZE = 6
+      if (ingredientList.length > BATCH_SIZE) {
+        for (let start = 0; start < ingredients.length; start += BATCH_SIZE) {
+          const batch = ingredients.slice(start, start + BATCH_SIZE)
+          const batchList = batch.map(ing => ({
+            name: ingName(ing),
+            amount: ingAmount(ing) ?? 1,
+            unit: ingUnit(ing) ?? 'unit'
+          }))
+
+          const batchPrompt = buildPerplexityPrompt({
+            ingredients: batchList,
+            zip: location,
+            context: culturalContext,
+            city,
+            defaultStore: defaultStoreName,
+            preferredStores,
+            compact: true,
+          })
+
+          const controller = new AbortController()
+          const timeoutMs = process.env.NODE_ENV === 'development' ? 60000 : 22000
+          const timeoutId = setTimeout(() => controller.abort(), timeoutMs)
+          const resp = await fetch('https://api.perplexity.ai/chat/completions', {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${perplexityApiKey}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              model: 'sonar',
+              messages: [
+                { role: 'system', content: 'You are a grocery pricing assistant. Return ONLY a valid JSON array with the requested fields. No extra text.' },
+                { role: 'user', content: batchPrompt }
+              ],
+              max_tokens: 700,
+              temperature: 0.1,
+              top_p: 0.9,
+              return_citations: false,
+              search_domain_filter: [
+                'walmart.com','target.com','kroger.com','publix.com','safeway.com','albertsons.com','aldi.us','costco.com','samsclub.com','wholefoodsmarket.com','traderjoes.com','meijer.com','heb.com','foodlion.com','giantfood.com','stopandshop.com','winndixie.com','ralphs.com','vons.com','fredmeyer.com'
+              ]
+            }),
+            signal: controller.signal
+          })
+          clearTimeout(timeoutId)
+
+          if (!resp.ok) {
+            const text = await resp.text().catch(() => '')
+            if (debug) return NextResponse.json({ error: 'perplexity_upstream', status: resp.status, body: text.slice(0, 800) }, { status: 502 })
+            return NextResponse.json({ error: `perplexity_upstream_${resp.status}` }, { status: 502 })
+          }
+
+          const data = await resp.json().catch(() => null as any)
+          const content = data?.choices?.[0]?.message?.content || ''
+          const cleaned = stripCodeFences(content)
+          let arr: any[] | null = null
+          try {
+            arr = extractJsonArray(cleaned)
+            if (!arr) {
+              const parsed = JSON.parse(cleaned)
+              arr = Array.isArray(parsed) ? parsed : [parsed]
+            }
+          } catch (e) {
+            if (debug) return NextResponse.json({ error: 'parse_error', body: cleaned.slice(0, 800) }, { status: 502 })
+            arr = []
+          }
+
+          for (let i = 0; i < batch.length; i++) {
+            const ing = batch[i]!
+            const match = (arr || []).find(d => d?.ingredient && String(d.ingredient).toLowerCase().includes(ingName(ing).toLowerCase())) || (arr || [])[i]
+            if (match) {
+              const sanitized = await sanitizeOption(match as PricingData, location, city)
+              const portion = computePortionCost(sanitized, ingAmount(ing) ?? 1, ingUnit(ing) ?? 'each', ingName(ing))
+              const pkg = normalizePrice(sanitized.packagePrice)
+              results.push({
+                id: results.length + 1,
+                original: ingName(ing),
+                matched: sanitized.productName || sanitized.storeName || 'Perplexity',
+                estimatedCost: portion,
+                portionCost: portion,
+                packagePrice: pkg ?? 0,
+                packageSize: sanitized.packageSize,
+                confidence: 0.85,
+                needsReview: false,
+                packages: 1,
+                storeName: sanitized.storeName,
+                storeType: sanitized.storeType,
+                storeAddress: sanitized.storeAddress,
+                sourceUrl: sanitized.sourceUrl,
+              })
+            } else {
+              results.push({ id: results.length + 1, original: ingName(ing), matched: 'Pricing unavailable', estimatedCost: 0, portionCost: 0, packagePrice: 0, confidence: 0.1, needsReview: true, packages: 1 })
+            }
+          }
+        }
+
+        // After batching, continue to shopping plan and return
+        let shoppingPlan: ShoppingPlan | undefined
+        if (raw.generateShoppingPlan && raw.preferredStore) {
+          try {
+            shoppingPlan = await generateShoppingPlan(ingredients, raw.preferredStore, location, city, culturalContext)
+          } catch {}
+        }
+        return NextResponse.json({
+          results,
+          totalEstimated: results.reduce((sum, item) => sum + (item.portionCost || item.estimatedCost || 0), 0),
+          source: 'perplexity',
+          shoppingPlan
+        })
+      }
 
       const prompt = buildPerplexityPrompt({
         ingredients: ingredientList,
