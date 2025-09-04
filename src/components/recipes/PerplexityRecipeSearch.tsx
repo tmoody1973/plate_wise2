@@ -1,7 +1,7 @@
 "use client"
 
 import React, { useState, useEffect } from 'react'
-import { Search, Clock, Users, ChefHat, Sparkles, Zap } from 'lucide-react'
+import { Search, Clock, Users, ChefHat, Sparkles, Zap, Plus, Loader2 } from 'lucide-react'
 import { usePerplexityRecipeSearchStream } from '@/hooks/usePerplexityRecipeSearchStream'
 
 interface PerplexityRecipeSearchProps {
@@ -31,6 +31,10 @@ export function PerplexityRecipeSearch({
   const [includeIngredients, setIncludeIngredients] = useState('')
   const [excludeIngredients, setExcludeIngredients] = useState('')
   const [maxResults, setMaxResults] = useState(3)
+  const [allRecipes, setAllRecipes] = useState<any[]>([])
+  const [lastSearchQuery, setLastSearchQuery] = useState('')
+  const [isLoadingMore, setIsLoadingMore] = useState(false)
+  
   const { 
     searchRecipes, 
     result, 
@@ -41,11 +45,19 @@ export function PerplexityRecipeSearch({
     isError 
   } = usePerplexityRecipeSearchStream()
 
-  const handleSearch = async () => {
+  const handleSearch = async (loadMore = false) => {
     if (!query.trim()) return
 
+    if (!loadMore) {
+      // New search - reset recipes
+      setAllRecipes([])
+      setLastSearchQuery(query.trim())
+    } else {
+      setIsLoadingMore(true)
+    }
+
     const searchFilters = {
-      query: query.trim(),
+      query: loadMore ? lastSearchQuery : query.trim(),
       cuisine: cuisine || undefined,
       difficulty: difficulty || undefined,
       dietary: dietary.length > 0 ? dietary : undefined,
@@ -55,18 +67,35 @@ export function PerplexityRecipeSearch({
       excludeIngredients: excludeIngredients
         ? excludeIngredients.split(',').map(s => s.trim()).filter(Boolean) 
         : undefined,
-      maxResults
+      maxResults: 3 // Always fetch 3 at a time
     }
 
     await searchRecipes(searchFilters)
   }
 
-  // Call onRecipesFound when streaming completes or recipes update
+  const handleLoadMore = async () => {
+    await handleSearch(true)
+  }
+
+  // Update allRecipes when new results come in
   useEffect(() => {
     if (result.recipes.length > 0) {
-      onRecipesFound?.(result.recipes)
+      if (isLoadingMore) {
+        // Append new recipes to existing ones
+        const newRecipes = [...allRecipes, ...result.recipes]
+        setAllRecipes(newRecipes)
+        onRecipesFound?.(newRecipes)
+        setIsLoadingMore(false)
+      } else {
+        // Replace with new search results
+        setAllRecipes(result.recipes)
+        onRecipesFound?.(result.recipes)
+      }
     }
-  }, [result.recipes, onRecipesFound])
+  }, [result.recipes])
+
+  // Check if we can load more (simple heuristic: if last search returned 3 recipes)
+  const canLoadMore = isComplete && allRecipes.length > 0 && allRecipes.length % 3 === 0
 
   const handleDietaryChange = (option: string, checked: boolean) => {
     if (checked) {
@@ -98,7 +127,7 @@ export function PerplexityRecipeSearch({
           />
         </div>
         <button
-          onClick={handleSearch}
+          onClick={() => handleSearch(false)}
           disabled={(isConnecting || isStreaming) || !query.trim()}
           className="px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2"
         >
@@ -152,21 +181,15 @@ export function PerplexityRecipeSearch({
             </select>
           </div>
 
-          {/* Max Results */}
+          {/* Results Info - Display Only */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
               <Users className="w-4 h-4 inline mr-1" />
-              Results
+              Results Per Load
             </label>
-            <select 
-              value={maxResults} 
-              onChange={(e) => setMaxResults(Number(e.target.value))}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-            >
-              <option value={1}>1 recipe</option>
-              <option value={3}>3 recipes</option>
-              <option value={5}>5 recipes</option>
-            </select>
+            <div className="px-3 py-2 bg-gray-50 border border-gray-200 rounded-md text-gray-700">
+              3 recipes at a time
+            </div>
           </div>
 
           {/* Include ingredients */}
@@ -253,9 +276,9 @@ export function PerplexityRecipeSearch({
         </div>
       )}
 
-      {isComplete && result.recipes.length > 0 && (
+      {isComplete && !isLoadingMore && result.recipes.length > 0 && (
         <div className="text-green-600 text-sm bg-green-50 p-3 rounded-lg">
-          ✅ Streaming complete! Found {result.recipes.length} recipe(s)!
+          ✅ Found {result.recipes.length} new recipe(s)! Total: {allRecipes.length} recipes
           {result.sources.length > 0 && (
             <span className="ml-2">
               Sources: {result.sources.length} websites
@@ -264,9 +287,43 @@ export function PerplexityRecipeSearch({
         </div>
       )}
 
-      {isComplete && result.recipes.length === 0 && !isError && (
+      {isComplete && result.recipes.length === 0 && !isError && allRecipes.length === 0 && (
         <div className="text-yellow-600 text-sm bg-yellow-50 p-3 rounded-lg">
           No recipes found. Try adjusting your search terms or filters.
+        </div>
+      )}
+
+      {/* Load More Button */}
+      {canLoadMore && !isConnecting && !isStreaming && (
+        <div className="flex justify-center mt-4">
+          <button
+            onClick={handleLoadMore}
+            disabled={isLoadingMore}
+            className="px-6 py-3 bg-gradient-to-r from-orange-500 to-orange-600 text-white rounded-lg hover:from-orange-600 hover:to-orange-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2 shadow-md transition-all transform hover:scale-105"
+          >
+            {isLoadingMore ? (
+              <>
+                <Loader2 className="w-5 h-5 animate-spin" />
+                <span>Loading more recipes...</span>
+              </>
+            ) : (
+              <>
+                <Plus className="w-5 h-5" />
+                <span>Load More Recipes</span>
+              </>
+            )}
+          </button>
+        </div>
+      )}
+
+      {/* Loading More Indicator */}
+      {isLoadingMore && isStreaming && (
+        <div className="flex items-center space-x-3 text-blue-600 bg-blue-50 p-3 rounded-lg">
+          <div className="flex items-center space-x-2">
+            <Zap className="w-4 h-4 animate-pulse" />
+            <div className="animate-spin rounded-full h-4 w-4 border-2 border-blue-600 border-t-transparent" />
+          </div>
+          <div className="text-sm font-medium">Loading more recipes...</div>
         </div>
       )}
     </div>
