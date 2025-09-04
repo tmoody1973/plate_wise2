@@ -39,6 +39,7 @@ import type { Recipe } from '@/types';
 import { useAuthContext } from '@/contexts/AuthContext';
 import { recipeService } from '@/lib/recipes';
 import { useToast } from '@/components/ui/toast';
+import { formatIngredientAmount } from '@/utils/fractions';
 
 function extractIdFromSlug(slug: string): string {
   if (!slug) return '';
@@ -1069,7 +1070,7 @@ export default function RecipeDetailPage() {
           {recipe.ingredients.map((ingredient, index) => (
             <div key={index} className="flex items-center justify-between py-2 border-b border-gray-100 last:border-b-0">
               <div className="text-gray-900">
-                <div>{ingredient.amount} {ingredient.unit} {ingredient.name}</div>
+                <div>{formatIngredientAmount(ingredient.amount, ingredient.unit)} {ingredient.name}</div>
                 {(ingredient.weightGrams || ingredient.wholeEquivalent) && (
                   <div className="text-xs text-gray-500 mt-0.5">
                     {ingredient.weightGrams ? `≈ ${ingredient.weightGrams}g` : ''}

@@ -15,6 +15,7 @@ import {
 import { recipeScalingService } from '@/lib/recipes/recipe-scaling-service';
 import type { Recipe } from '@/types';
 import type { ScaledRecipe, CostAnalysisResult } from '@/lib/recipes/recipe-scaling-service';
+import { formatIngredientAmount } from '@/utils/fractions';
 
 interface RecipeScalingProps {
   recipe: Recipe;
@@ -324,7 +325,7 @@ export function RecipeScaling({ recipe, onScaledRecipe, userLocation }: RecipeSc
                   <div className="flex-1">
                     <div className="font-medium text-gray-900">{cost.ingredient.name}</div>
                     <div className="text-sm text-gray-600">
-                      {cost.ingredient.amount} {cost.ingredient.unit} × {formatCurrency(cost.unitCost)}
+                      {formatIngredientAmount(cost.ingredient.amount, cost.ingredient.unit)} × {formatCurrency(cost.unitCost)}
                     </div>
                   </div>
                   
