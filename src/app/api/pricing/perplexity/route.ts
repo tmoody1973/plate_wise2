@@ -1083,16 +1083,49 @@ export async function POST(request: NextRequest) {
             body: JSON.stringify({
               model: 'sonar',
               messages: [
-                { role: 'system', content: 'You are a grocery pricing assistant. Return ONLY a valid JSON array with the requested fields. No extra text.' },
+                { role: 'system', content: 'You are a grocery pricing assistant. Provide accurate pricing information for ingredients.' },
                 { role: 'user', content: batchPrompt }
               ],
-              max_tokens: 250,
+              max_tokens: 400,
               temperature: 0.1,
               top_p: 0.9,
               return_citations: false,
               search_domain_filter: [
                 'walmart.com','target.com','kroger.com','publix.com','safeway.com','albertsons.com','aldi.us','costco.com','samsclub.com','wholefoodsmarket.com','traderjoes.com','meijer.com','heb.com','foodlion.com','giantfood.com','stopandshop.com','winndixie.com','ralphs.com','vons.com','fredmeyer.com'
-              ]
+              ],
+              // Enable structured output
+              response_format: {
+                type: 'json_schema',
+                json_schema: {
+                  name: 'grocery_pricing',
+                  schema: {
+                    type: 'object',
+                    properties: {
+                      items: {
+                        type: 'array',
+                        items: {
+                          type: 'object',
+                          properties: {
+                            ingredient: { type: 'string' },
+                            storeName: { type: 'string' },
+                            productName: { type: 'string' },
+                            packageSize: { type: 'string' },
+                            packagePrice: { type: 'number' },
+                            unitPrice: { type: 'string' },
+                            portionCost: { type: 'number' },
+                            storeType: { type: 'string' },
+                            storeAddress: { type: 'string' },
+                            sourceUrl: { type: 'string' }
+                          },
+                          required: ['ingredient', 'storeName', 'productName', 'packagePrice']
+                        }
+                      }
+                    },
+                    required: ['items']
+                  },
+                  strict: true
+                }
+              }
             }),
             signal: controller.signal
             })
@@ -1102,7 +1135,15 @@ export async function POST(request: NextRequest) {
             console.warn(`⚠️ Perplexity API timeout/error for batch ${start}-${start + BATCH_SIZE}:`, error.message)
             // Fall back to estimated prices for this batch
             for (const ing of batch) {
-              const estimated = heuristicCost({ name: ingName(ing), amount: ingAmount(ing) ?? 1, unit: ingUnit(ing) ?? 'unit' })
+              const estimated = heuristicCost({ 
+                id: `temp-${i}`,
+                name: ingName(ing), 
+                amount: ingAmount(ing) ?? 1, 
+                unit: ingUnit(ing) ?? 'unit',
+                substitutes: [],
+                costPerUnit: 0,
+                availability: []
+              } as Ingredient)
               results.push({
                 id: results.length + 1,
                 original: ingName(ing),
@@ -1128,16 +1169,29 @@ export async function POST(request: NextRequest) {
 
           const data = await resp.json().catch(() => null as any)
           const content = data?.choices?.[0]?.message?.content || ''
-          const cleaned = stripCodeFences(content)
+          
+          // With structured output, the content should already be valid JSON
+          let structuredResponse: any = null
           let arr: any[] | null = null
+          
           try {
-            arr = extractJsonArray(cleaned)
-            if (!arr) {
-              const parsed = JSON.parse(cleaned)
-              arr = Array.isArray(parsed) ? parsed : [parsed]
+            // Try parsing as structured output first
+            const parsed = JSON.parse(content)
+            if (parsed?.items && Array.isArray(parsed.items)) {
+              arr = parsed.items
+            } else if (Array.isArray(parsed)) {
+              arr = parsed
+            } else {
+              // Fallback to old parsing method
+              const cleaned = stripCodeFences(content)
+              arr = extractJsonArray(cleaned)
+              if (!arr) {
+                arr = [parsed]
+              }
             }
           } catch (e) {
-            if (debug) return NextResponse.json({ error: 'parse_error', body: cleaned.slice(0, 800) }, { status: 502 })
+            console.warn('Failed to parse Perplexity response:', e)
+            if (debug) return NextResponse.json({ error: 'parse_error', body: content.slice(0, 800) }, { status: 502 })
             arr = []
           }
 
@@ -1216,21 +1270,54 @@ export async function POST(request: NextRequest) {
           messages: [
             {
               role: 'system',
-              content: 'You are a grocery pricing assistant. Always return ONLY valid JSON in the exact format requested. Do not include any explanatory text, reasoning, or commentary. Return only the JSON array.'
+              content: 'You are a grocery pricing assistant. Provide accurate pricing information for ingredients.'
             },
             {
               role: 'user',
               content: prompt
             }
           ],
-          max_tokens: 250, // compact mode; reduce tokens to avoid timeouts
+          max_tokens: 600, // Increased for structured output
           temperature: 0.1,
           top_p: 0.9,
           return_citations: false,
           // Perplexity limit: max 20 domains
           search_domain_filter: [
             'walmart.com','target.com','kroger.com','publix.com','safeway.com','albertsons.com','aldi.us','costco.com','samsclub.com','wholefoodsmarket.com','traderjoes.com','meijer.com','heb.com','foodlion.com','giantfood.com','stopandshop.com','winndixie.com','ralphs.com','vons.com','fredmeyer.com'
-          ]
+          ],
+          // Enable structured output
+          response_format: {
+            type: 'json_schema',
+            json_schema: {
+              name: 'grocery_pricing',
+              schema: {
+                type: 'object',
+                properties: {
+                  items: {
+                    type: 'array',
+                    items: {
+                      type: 'object',
+                      properties: {
+                        ingredient: { type: 'string' },
+                        storeName: { type: 'string' },
+                        productName: { type: 'string' },
+                        packageSize: { type: 'string' },
+                        packagePrice: { type: 'number' },
+                        unitPrice: { type: 'string' },
+                        portionCost: { type: 'number' },
+                        storeType: { type: 'string' },
+                        storeAddress: { type: 'string' },
+                        sourceUrl: { type: 'string' }
+                      },
+                      required: ['ingredient', 'storeName', 'productName', 'packagePrice']
+                    }
+                  }
+                },
+                required: ['items']
+              },
+              strict: true
+            }
+          }
         }),
         signal: controller.signal
         })
@@ -1240,7 +1327,15 @@ export async function POST(request: NextRequest) {
         console.warn(`⚠️ Perplexity API timeout/error:`, error.message)
         // Fall back to estimated prices for all ingredients
         const fallbackResults = ingredients.map((ing, i) => {
-          const estimated = heuristicCost({ name: ingName(ing), amount: ingAmount(ing) ?? 1, unit: ingUnit(ing) ?? 'unit' })
+          const estimated = heuristicCost({ 
+            id: `temp-${i}`,
+            name: ingName(ing), 
+            amount: ingAmount(ing) ?? 1, 
+            unit: ingUnit(ing) ?? 'unit',
+            substitutes: [],
+            costPerUnit: 0,
+            availability: []
+          } as Ingredient)
           return {
             id: i + 1,
             original: ingName(ing),
@@ -1282,26 +1377,33 @@ export async function POST(request: NextRequest) {
       console.log('🤖 First 800 chars:', aiResponse.substring(0, 800))
       console.log('🏪 Looking for store location integration in response...')
 
-      // Try to extract JSON from the response (robust)
+      // Parse structured JSON response
       let pricingData: PricingData[]
-      const cleanedResponse = stripCodeFences(aiResponse)
-      console.log('🧹 Cleaned response length:', cleanedResponse.length)
-      console.log('🧹 First 500 chars of cleaned:', cleanedResponse.substring(0, 500))
       
       try {
-        const arr = extractJsonArray(cleanedResponse)
-        if (arr && arr.length > 0) {
-          console.log('✅ Extracted JSON array with', arr.length, 'items')
-          pricingData = arr as PricingData[]
+        // With structured output, response should be valid JSON
+        const parsed = JSON.parse(aiResponse)
+        
+        if (parsed?.items && Array.isArray(parsed.items)) {
+          console.log('✅ Structured output parsed successfully with', parsed.items.length, 'items')
+          pricingData = parsed.items as PricingData[]
+        } else if (Array.isArray(parsed)) {
+          console.log('✅ Direct array parsed with', parsed.length, 'items')
+          pricingData = parsed as PricingData[]
         } else {
-          console.log('⚠️ No array found, trying direct JSON parse')
-          const parsed = JSON.parse(cleanedResponse) as any
-          pricingData = Array.isArray(parsed) ? parsed : [parsed]
-          console.log('✅ Direct parse result:', pricingData.length, 'items')
+          // Fallback to old parsing for backward compatibility
+          const cleanedResponse = stripCodeFences(aiResponse)
+          const arr = extractJsonArray(cleanedResponse)
+          if (arr && arr.length > 0) {
+            console.log('✅ Extracted JSON array with', arr.length, 'items')
+            pricingData = arr as PricingData[]
+          } else {
+            pricingData = [parsed]
+          }
         }
       } catch (parseError) {
-        console.error('❌ Error parsing Perplexity batch response:', parseError)
-        console.log('🔍 Trying text fallback parsing...')
+        console.error('❌ Error parsing Perplexity response:', parseError)
+        console.log('🔍 Falling back to text parsing...')
         // Fallback to individual ingredient estimates
         pricingData = ingredients.map(ingredient => 
           parseTextResponse(aiResponse, ingredient)
