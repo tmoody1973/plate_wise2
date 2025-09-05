@@ -371,6 +371,14 @@ export function ProfileSetupWizard({ isUpdate = false }: ProfileSetupWizardProps
     }
   };
 
+  // Handle redirect in useEffect to avoid calling router.push during render
+  // MUST be called before any conditional returns to follow Rules of Hooks
+  useEffect(() => {
+    if (!isUpdate && hasCompletedSetup && !hasStartedSetup) {
+      router.push('/dashboard');
+    }
+  }, [isUpdate, hasCompletedSetup, hasStartedSetup, router]);
+
   const renderCurrentStep = () => {
     switch (currentStep) {
       case 'personal':
@@ -441,10 +449,8 @@ export function ProfileSetupWizard({ isUpdate = false }: ProfileSetupWizardProps
     );
   }
 
-  // Only redirect if setup is complete and user hasn't started the setup process
-  // This prevents redirects during the setup process
+  // Show redirect screen if conditions are met
   if (!isUpdate && hasCompletedSetup && !hasStartedSetup) {
-    router.push('/dashboard');
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center">
         <div className="text-center">
@@ -458,6 +464,21 @@ export function ProfileSetupWizard({ isUpdate = false }: ProfileSetupWizardProps
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
       <div className="max-w-4xl mx-auto px-4 py-8">
+        {/* Back to Dashboard button for update mode */}
+        {isUpdate && (
+          <div className="mb-6">
+            <button
+              onClick={() => router.push('/dashboard')}
+              className="inline-flex items-center text-sm text-gray-600 hover:text-gray-900 transition-colors"
+            >
+              <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+              </svg>
+              Back to Dashboard
+            </button>
+          </div>
+        )}
+
         {/* Header */}
         <div className="text-center mb-8">
           <h1 className="text-3xl font-bold text-gray-900 mb-2">
@@ -513,14 +534,27 @@ export function ProfileSetupWizard({ isUpdate = false }: ProfileSetupWizardProps
 
         {/* Navigation */}
         <div className="flex justify-between">
-          <Button
-            onClick={handlePrevious}
-            disabled={isFirstStep}
-            variant="outline"
-            className="px-6"
-          >
-            Previous
-          </Button>
+          <div className="flex gap-2">
+            <Button
+              onClick={handlePrevious}
+              disabled={isFirstStep}
+              variant="outline"
+              className="px-6"
+            >
+              Previous
+            </Button>
+            
+            {/* Cancel button for update mode */}
+            {isUpdate && (
+              <Button
+                onClick={() => router.push('/dashboard')}
+                variant="outline"
+                className="px-6 text-gray-600 hover:text-gray-900"
+              >
+                Cancel
+              </Button>
+            )}
+          </div>
           
           {isLastStep ? (
             <Button

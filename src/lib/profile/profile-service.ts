@@ -298,21 +298,44 @@ export class ProfileService {
    */
   async hasCompletedSetup(userId: string): Promise<ProfileServiceResult<boolean>> {
     try {
-      // Temporary bypass: always return true to skip setup check
-      console.log('Bypassing profile setup check for user:', userId);
-      
-      // Try to create a minimal profile if it doesn't exist
-      await this.createMinimalProfileIfNeeded(userId);
-      
+      // Check if profile exists in the database
+      const { data: profile, error } = await this.supabase
+        .from('user_profiles')
+        .select('id, name, location')
+        .eq('id', userId)
+        .maybeSingle();
+
+      if (error) {
+        console.error('Error checking profile setup:', error);
+        // If there's an error, assume setup is not complete to be safe
+        return {
+          data: false,
+          success: false,
+          error: error.message
+        };
+      }
+
+      // Profile is considered complete if it exists and has required fields
+      const isComplete = !!(
+        profile?.id && 
+        profile?.name && 
+        profile?.location &&
+        Object.keys(profile.location).length > 0
+      );
+
+      console.log('Profile setup check for user:', userId, 'isComplete:', isComplete);
+
       return {
-        data: true, // Always return true to bypass setup
+        data: isComplete,
         success: true,
       };
     } catch (error) {
       console.error('Error in hasCompletedSetup:', error);
+      // If there's an unexpected error, assume setup is not complete
       return {
-        data: true, // Still return true to bypass
-        success: true,
+        data: false,
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error'
       };
     }
   }

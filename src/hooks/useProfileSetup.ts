@@ -45,7 +45,11 @@ export function useProfileSetup(): UseProfileSetupResult {
       const setupResult = await profileService.hasCompletedSetup(user.id);
       
       if (!setupResult.success) {
-        throw new Error(setupResult.error || 'Failed to check setup status');
+        // If there's an error checking setup, assume it's not complete
+        // This ensures new users or users with DB issues get redirected to setup
+        console.warn('Error checking setup status, assuming not complete:', setupResult.error);
+        setHasCompletedSetup(false);
+        return;
       }
 
       setHasCompletedSetup(setupResult.data || false);
@@ -71,6 +75,7 @@ export function useProfileSetup(): UseProfileSetupResult {
   };
 
   const redirectToSetup = () => {
+    console.log('Attempting to redirect to /profile/setup');
     router.push('/profile/setup');
   };
 
@@ -108,6 +113,15 @@ export function useRequireProfileSetup() {
       (window.location.pathname.includes('/profile/setup') || 
        localStorage.getItem('platewise-setup-step') !== null ||
        localStorage.getItem('platewise-setup-in-progress') === 'true');
+    
+    console.log('useRequireProfileSetup check:', { 
+      isLoading, 
+      hasCompletedSetup, 
+      isInSetupProcess,
+      pathname: typeof window !== 'undefined' ? window.location.pathname : 'unknown',
+      setupStep: typeof window !== 'undefined' ? localStorage.getItem('platewise-setup-step') : null,
+      setupInProgress: typeof window !== 'undefined' ? localStorage.getItem('platewise-setup-in-progress') : null
+    });
     
     // Only redirect if not in setup process and setup is not completed
     if (!isLoading && hasCompletedSetup === false && !isInSetupProcess) {
