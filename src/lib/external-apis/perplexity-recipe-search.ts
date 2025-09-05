@@ -201,7 +201,7 @@ class PerplexityRecipeSearchService {
       }
 
       // Parse the JSON response with citations
-      const recipes = this.parseRecipeSearchResponse(fullContent, citations);
+      const recipes = this.parseRecipeSearchResponse(fullContent, citations, request.maxResults);
       console.log('📊 Parsed recipes count:', recipes.length);
       console.log('📔 Citations found:', citations.length);
       
@@ -390,7 +390,7 @@ class PerplexityRecipeSearchService {
 
       // Parse final result
       try {
-        const recipes = this.parseRecipeSearchResponse(fullContent, citations);
+        const recipes = this.parseRecipeSearchResponse(fullContent, citations, request.maxResults);
         yield {
           type: 'complete',
           recipes,
@@ -514,7 +514,7 @@ IMPORTANT:
   /**
    * Parse Perplexity's recipe search response with robust error handling
    */
-  private parseRecipeSearchResponse(content: string, citations: string[] = []): PerplexityRecipe[] {
+  private parseRecipeSearchResponse(content: string, citations: string[] = [], maxResults?: number): PerplexityRecipe[] {
     try {
       // Clean the content
       let cleanedContent = content.trim();
@@ -559,18 +559,34 @@ IMPORTANT:
       if (parsed.recipes && Array.isArray(parsed.recipes)) {
         console.log(`📦 Found ${parsed.recipes.length} recipes in standard format`);
         // Filter out any non-object entries and normalize
-        return parsed.recipes
+        const normalizedRecipes = parsed.recipes
           .filter((recipe: any) => typeof recipe === 'object' && recipe !== null)
           .map((recipe: any, index: number) => this.normalizeRecipe(recipe, citations[index] || citations[0] || ''));
+        
+        // Limit results to maxResults if specified
+        if (maxResults && maxResults > 0) {
+          console.log(`📊 Limiting results from ${normalizedRecipes.length} to ${maxResults}`);
+          return normalizedRecipes.slice(0, maxResults);
+        }
+        
+        return normalizedRecipes;
       }
       
       // Check if the response IS the recipes array directly
       if (Array.isArray(parsed)) {
         console.log(`📦 Response is direct array of ${parsed.length} items`);
         // Filter out any non-object entries
-        return parsed
+        const normalizedRecipes = parsed
           .filter((recipe: any) => typeof recipe === 'object' && recipe !== null)
           .map((recipe: any, index: number) => this.normalizeRecipe(recipe, citations[index] || citations[0] || ''));
+        
+        // Limit results to maxResults if specified
+        if (maxResults && maxResults > 0) {
+          console.log(`📊 Limiting direct array from ${normalizedRecipes.length} to ${maxResults}`);
+          return normalizedRecipes.slice(0, maxResults);
+        }
+        
+        return normalizedRecipes;
       }
       
       // Check for a single recipe object
