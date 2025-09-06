@@ -9,6 +9,7 @@
 import { useState, useEffect } from 'react';
 import { useToast } from '@/components/ui/toast';
 import type { UserProfile } from '@/types';
+import { StoreSelectionCard, type StoreInfo } from '@/components/profile/StoreSelectionCard';
 
 interface ProfileEditFormProps {
   profile: UserProfile | null;
@@ -75,20 +76,14 @@ export function ProfileEditForm({ profile, onUpdate, onRefresh }: ProfileEditFor
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [saving, setSaving] = useState(false);
   const [storeZip, setStoreZip] = useState('');
-  const [stores, setStores] = useState<Array<{ id: string; name: string }>>([]);
+  const [nearbyStores, setNearbyStores] = useState<StoreInfo[]>([]);
   const [selectedStore, setSelectedStore] = useState<{ id?: string; name?: string }>({});
   const [loadingChains, setLoadingChains] = useState(false);
   const [savingChains, setSavingChains] = useState(false);
-  const [chainSuggestions, setChainSuggestions] = useState<Array<{
-    placeId: string;
-    chain: string;
-    name: string;
-    address: string;
-    rating?: number;
-    userRatingsTotal?: number;
-    types: string[];
-    selected: boolean;
-  }>>([]);
+  const [chainSuggestions, setChainSuggestions] = useState<StoreInfo[]>([]);
+  const [favoriteStores, setFavoriteStores] = useState<Set<string>>(new Set());
+  const [showLargeText, setShowLargeText] = useState(false);
+  const [userLanguage, setUserLanguage] = useState<'en' | 'es' | 'zh' | 'vi' | 'so' | 'hmn'>('en');
 
   // Initialize form data when profile loads
   useEffect(() => {
@@ -235,14 +230,41 @@ export function ProfileEditForm({ profile, onUpdate, onRefresh }: ProfileEditFor
         addToast({ type: 'warning', title: 'ZIP required', message: 'Enter a ZIP to search stores' });
         return;
       }
-      const res = await fetch(`/api/kroger/locations?zip=${encodeURIComponent(zip)}`);
+      // Use Google Places API instead of Kroger
+      const res = await fetch(`/api/stores/nearby?zip=${encodeURIComponent(zip)}&limit=10`);
       if (!res.ok) throw new Error(`Store lookup failed: ${res.status}`);
       const json = await res.json();
-      const list = (json.data || []).map((s: any) => ({ id: s.id as string, name: s.name as string }));
-      setStores(list);
-      if (list[0]) setSelectedStore(list[0]);
+      console.log('Nearby stores response:', json);
+      
+      const list: StoreInfo[] = (json.data || []).map((s: any) => ({
+        id: s.id,
+        placeId: s.id,
+        name: s.name,
+        address: s.address,
+        distance: s.distance,
+        rating: s.rating,
+        userRatingsTotal: s.userRatingsTotal,
+        isOpen: s.openNow, // Use openNow from GroceryStore interface
+        photo: s.photos?.[0],
+        phone: s.phone,
+        website: s.website,
+        location: s.location,
+        features: s.features,
+        selected: false
+      }));
+      
+      console.log('Nearby stores mapped:', list.length, 'stores');
+      setNearbyStores(list);
+      
+      if (list[0]) setSelectedStore({ id: list[0].id, name: list[0].name });
+      if (list.length > 0) {
+        addToast({ type: 'success', title: 'Stores Found', message: `Found ${list.length} stores near ${zip}` });
+      } else {
+        addToast({ type: 'warning', title: 'No Stores', message: 'No grocery stores found in that area' });
+      }
     } catch (e) {
-      addToast({ type: 'error', title: 'Store search failed', message: 'Could not load stores for that ZIP' });
+      console.error('Store search error:', e);
+      addToast({ type: 'error', title: 'Store search failed', message: 'Could not load stores for that ZIP. Please try again.' });
     }
   };
 
@@ -265,96 +287,166 @@ export function ProfileEditForm({ profile, onUpdate, onRefresh }: ProfileEditFor
     }
   };
 
-  const renderShoppingSection = () => (
-    <div className="space-y-4">
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-3 items-end">
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">ZIP Code</label>
-          <input
-            type="text"
-            value={storeZip}
-            onChange={(e) => setStoreZip(e.target.value)}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            placeholder="12345"
-          />
-        </div>
-        <div>
-          <button
-            onClick={fetchStores}
-            className="mt-6 w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50 hover:bg-gray-100"
-          >Find Nearby Stores</button>
-        </div>
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">Default Store</label>
-          <select
-            value={selectedStore.id || ''}
-            onChange={(e) => setSelectedStore({ id: e.target.value, name: stores.find(s => s.id === e.target.value)?.name })}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg"
-          >
-            <option value="">Select a store</option>
-            {stores.map(s => (
-              <option key={s.id} value={s.id}>{s.name}</option>
-            ))}
-          </select>
-        </div>
-      </div>
-      <div className="border-t border-gray-200 pt-4">
-        <div className="flex items-center justify-between mb-3">
-          <div>
-            <div className="text-sm font-medium text-gray-700">Suggest Major Chains</div>
-            <div className="text-xs text-gray-500">Based on your city and ZIP</div>
+  const renderShoppingSection = () => {
+    // Combine both regular stores and chain suggestions
+    const allStores = [...chainSuggestions, ...nearbyStores];
+    
+    // Function to handle store selection
+    const handleStoreSelect = (store: StoreInfo) => {
+      const storeId = store.placeId || store.id;
+      console.log('Selecting store:', store.name, 'ID:', storeId);
+      
+      // Update chainSuggestions
+      setChainSuggestions(prev => prev.map(s => {
+        if ((s.placeId || s.id) === storeId) {
+          const newStore = { ...s, selected: !s.selected };
+          console.log('Updated chain suggestion:', newStore.name, 'selected:', newStore.selected);
+          return newStore;
+        }
+        return s;
+      }));
+      
+      // Update nearbyStores  
+      setNearbyStores(prev => prev.map(s => {
+        if ((s.placeId || s.id) === storeId) {
+          const newStore = { ...s, selected: !s.selected };
+          console.log('Updated nearby store:', newStore.name, 'selected:', newStore.selected);
+          return newStore;
+        }
+        return s;
+      }));
+    };
+
+    // Function to toggle favorite
+    const handleToggleFavorite = (storeId: string) => {
+      setFavoriteStores(prev => {
+        const newFavorites = new Set(prev);
+        if (newFavorites.has(storeId)) {
+          newFavorites.delete(storeId);
+        } else {
+          newFavorites.add(storeId);
+        }
+        return newFavorites;
+      });
+    };
+
+    return (
+      <div className="space-y-4">
+        {/* Search Controls */}
+        <div className="border-b border-gray-200 pb-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3 items-end mb-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">ZIP Code</label>
+              <input
+                type="text"
+                value={storeZip}
+                onChange={(e) => setStoreZip(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                placeholder="12345"
+              />
+            </div>
+            <div>
+              <button
+                onClick={fetchStores}
+                className="mt-6 w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50 hover:bg-gray-100"
+              >Find Nearby Stores</button>
+            </div>
+            <div>
+              <button
+                onClick={fetchChainSuggestions}
+                className="mt-6 w-full px-3 py-2 border border-gray-300 rounded-lg bg-blue-50 hover:bg-blue-100 disabled:opacity-50"
+                disabled={loadingChains || !profile?.location?.city}
+              >{loadingChains ? 'Finding…' : 'Suggest Major Chains'}</button>
+            </div>
           </div>
-          <button
-            onClick={fetchChainSuggestions}
-            className="px-3 py-2 rounded-lg border border-gray-300 bg-gray-50 hover:bg-gray-100 disabled:opacity-50"
-            disabled={loadingChains || !profile?.location?.city}
-          >{loadingChains ? 'Finding…' : 'Suggest Major Chains'}</button>
+          
+          {/* Accessibility Options */}
+          <div className="flex gap-4 items-center">
+            <label className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                checked={showLargeText}
+                onChange={(e) => setShowLargeText(e.target.checked)}
+                className="h-4 w-4"
+              />
+              <span className="text-sm">Large Text Mode</span>
+            </label>
+            <div className="flex items-center gap-2">
+              <label htmlFor="language-select" className="text-sm">Language:</label>
+              <select
+                id="language-select"
+                value={userLanguage}
+                onChange={(e) => setUserLanguage(e.target.value as any)}
+                className="px-2 py-1 border rounded text-sm"
+              >
+                <option value="en">English</option>
+                <option value="es">Español</option>
+                <option value="zh">中文</option>
+                <option value="vi">Tiếng Việt</option>
+                <option value="so">Soomaali</option>
+                <option value="hmn">Hmoob</option>
+              </select>
+            </div>
+          </div>
         </div>
-        {chainSuggestions.length > 0 && (
-          <div className="space-y-2">
-            {chainSuggestions.map((s, idx) => (
-              <label key={s.placeId} className="flex items-start gap-3 p-3 border rounded-lg">
-                <input
-                  type="checkbox"
-                  checked={s.selected}
-                  onChange={() => toggleChainSelection(idx)}
+
+        {/* Store Cards Grid */}
+        {allStores.length > 0 && (
+          <div>
+            <h4 className="font-medium mb-3">Available Stores</h4>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {allStores.map((store) => (
+                <StoreSelectionCard
+                  key={store.placeId || store.id}
+                  store={store}
+                  onSelect={handleStoreSelect}
+                  onToggleFavorite={handleToggleFavorite}
+                  isFavorite={favoriteStores.has(store.id)}
+                  showDistance={true}
+                  largeText={showLargeText}
+                  language={userLanguage}
                 />
-                <div className="text-sm">
-                  <div className="font-medium text-gray-900">{s.name} <span className="text-gray-500">({s.chain})</span></div>
-                  <div className="text-gray-600">{s.address}</div>
-                  {s.rating ? (
-                    <div className="text-xs text-gray-500">Rating {s.rating} · {s.userRatingsTotal || 0} reviews</div>
-                  ) : null}
-                </div>
-              </label>
-            ))}
-            <div className="flex justify-end">
+              ))}
+            </div>
+            
+            {/* Save Selected Stores */}
+            <div className="mt-6 flex justify-end">
               <button
                 onClick={saveSelectedChains}
-                className="px-4 py-2 rounded-lg bg-green-600 text-white hover:bg-green-700 disabled:opacity-50"
-                disabled={savingChains || !chainSuggestions.some(s => s.selected)}
-              >{savingChains ? 'Saving…' : 'Save Selected Stores'}</button>
+                className="px-6 py-3 rounded-lg bg-green-600 text-white hover:bg-green-700 disabled:opacity-50 font-medium"
+                disabled={savingChains || !allStores.some(s => s.selected)}
+              >
+                {savingChains ? 'Saving…' : `Save ${allStores.filter(s => s.selected).length} Selected Stores`}
+              </button>
             </div>
           </div>
         )}
+        
+        {/* Empty State */}
+        {allStores.length === 0 && (
+          <div className="text-center py-8 bg-gray-50 rounded-lg">
+            <div className="text-gray-400 text-4xl mb-3">🛒</div>
+            <p className="text-gray-600">No stores loaded yet</p>
+            <p className="text-sm text-gray-500 mt-2">
+              Enter your ZIP code or click "Suggest Major Chains" to find stores
+            </p>
+          </div>
+        )}
+        
+        <p className="text-xs text-gray-500 mt-4">
+          These stores will be used for live price checks and shopping plans. You can change them anytime.
+        </p>
       </div>
-      <div className="flex items-center justify-between">
-        <div className="text-sm text-gray-600">
-          {selectedStore.name ? `Selected: ${selectedStore.name}` : 'No store selected'}
-        </div>
-        <button
-          onClick={saveDefaultStore}
-          className="px-4 py-2 rounded-lg bg-green-600 text-white hover:bg-green-700"
-          disabled={!selectedStore.id}
-        >Save Default Store</button>
-      </div>
-      <p className="text-xs text-gray-500">This store is used for live price checks and shopping plans. You can change it anytime.</p>
-    </div>
-  );
+    );
+  };
 
   async function fetchChainSuggestions() {
     try {
-      if (!profile?.location?.city) return
+      if (!profile?.location?.city) {
+        console.log('No city in profile location')
+        addToast({ type: 'warning', title: 'Location Required', message: 'Please set your city in Personal Information first' })
+        return
+      }
       setLoadingChains(true)
       const params = new URLSearchParams({
         city: profile.location.city || '',
@@ -362,10 +454,37 @@ export function ProfileEditForm({ profile, onUpdate, onRefresh }: ProfileEditFor
         zip: profile.location.zipCode || '',
         limit: '8',
       })
+      console.log('Fetching stores with params:', params.toString())
       const res = await fetch(`/api/stores/suggest?${params.toString()}`, { cache: 'no-store' as any })
+      console.log('Store suggest response:', res.status)
       if (!res.ok) throw new Error(`suggest ${res.status}`)
       const json = await res.json()
-      const list = (json.data || []).map((s: any) => ({ ...s, selected: true }))
+      console.log('Store suggest data:', json)
+      const list: StoreInfo[] = (json.data || []).map((s: any) => ({
+        id: s.placeId,
+        placeId: s.placeId,
+        name: s.name,
+        address: s.address,
+        city: s.city,
+        state: s.state,
+        zip: s.zip,
+        rating: s.rating,
+        userRatingsTotal: s.userRatingsTotal,
+        types: s.types || [],
+        selected: true,
+        category: s.chain?.toLowerCase().includes('costco') || s.chain?.toLowerCase().includes('sam') ? 'budget' : 'primary',
+        // Add any missing fields for StoreInfo
+        distance: undefined,
+        isOpen: undefined,
+        phone: undefined,
+        website: undefined,
+        photo: undefined,
+        hours: undefined,
+        priceLevel: undefined,
+        features: undefined,
+        location: undefined
+      }))
+      console.log('Store suggestions fetched:', list.length, 'stores')
       setChainSuggestions(list)
     } catch (e) {
       addToast({ type: 'error', title: 'Suggestion failed', message: 'Could not fetch store suggestions' })
@@ -380,18 +499,53 @@ export function ProfileEditForm({ profile, onUpdate, onRefresh }: ProfileEditFor
 
   async function saveSelectedChains() {
     try {
-      const toSave = chainSuggestions.filter(s => s.selected)
-      if (toSave.length === 0) return
+      const selectedFromChains = chainSuggestions.filter(s => s.selected)
+      const selectedFromNearby = nearbyStores.filter(s => s.selected)
+      const toSave = [...selectedFromChains, ...selectedFromNearby]
+      console.log('Selected stores to save:', toSave.length, toSave)
+      
+      if (toSave.length === 0) {
+        addToast({ type: 'warning', title: 'No stores selected', message: 'Please select stores to save first' })
+        return
+      }
       setSavingChains(true)
+      
+      // Map StoreInfo to SaveStoreInput format
+      const storesToSave = toSave.map(store => ({
+        placeId: store.placeId || store.id,
+        name: store.name,
+        address: store.address,
+        rating: store.rating,
+        types: store.types,
+        website: store.website,
+        phone: store.phone,
+        location: store.location,
+        userRatingsTotal: store.userRatingsTotal,
+        priceLevel: store.priceLevel,
+        features: store.features
+      }))
+      
+      console.log('Mapped stores to save:', storesToSave)
+      
       const res = await fetch('/api/stores/save', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ stores: toSave }),
+        body: JSON.stringify({ stores: storesToSave }),
       })
-      if (!res.ok) throw new Error('save failed')
-      addToast({ type: 'success', title: 'Stores saved', message: `${toSave.length} stores added to your profile` })
+      
+      const responseData = await res.json()
+      console.log('Save response:', res.status, responseData)
+      
+      if (!res.ok) throw new Error(responseData.error || 'save failed')
+      
+      // Clear selected state from both arrays after successful save
+      setChainSuggestions(prev => prev.map(s => ({ ...s, selected: false })))
+      setNearbyStores(prev => prev.map(s => ({ ...s, selected: false })))
+      
+      addToast({ type: 'success', title: 'Stores saved', message: `${toSave.length} stores saved with complete information for pricing` })
     } catch (e) {
-      addToast({ type: 'error', title: 'Save failed', message: 'Could not save selected stores' })
+      console.error('Save error:', e)
+      addToast({ type: 'error', title: 'Save failed', message: `Could not save selected stores: ${e}` })
     } finally {
       setSavingChains(false)
     }

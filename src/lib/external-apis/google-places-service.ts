@@ -178,7 +178,8 @@ export class GooglePlacesService {
     this.apiKey = process.env.GOOGLE_PLACES_API_KEY || '';
     
     if (!this.apiKey) {
-      throw new Error('Google Places API key not configured');
+      console.error('Google Places API key not configured. Please set GOOGLE_PLACES_API_KEY in your environment variables.');
+      // Don't throw error, let methods handle the missing key gracefully
     }
   }
 
@@ -323,12 +324,19 @@ export class GooglePlacesService {
    * Get detailed information about a specific place
    */
   async getPlaceDetails(placeId: string): Promise<PlaceDetails | null> {
+    if (!this.apiKey) {
+      console.error('Google Places API: Cannot get place details without API key');
+      return null;
+    }
+
     try {
+      console.log('Google Places API: Getting details for place:', placeId);
       const response = await this.makeRequest<{ result: PlaceDetails }>('/details/json', {
         place_id: placeId,
-        fields: 'name,formatted_address,formatted_phone_number,website,rating,reviews,opening_hours,photos,price_level,types',
+        fields: 'name,formatted_address,formatted_phone_number,website,rating,reviews,opening_hours,photos,price_level,types,business_status,address_components',
       });
 
+      console.log('Google Places API: Got details for:', response.result?.name);
       return response.result;
     } catch (error) {
       console.error(`Failed to get place details for ${placeId}:`, error);
@@ -344,6 +352,11 @@ export class GooglePlacesService {
     location?: { lat: number; lng: number },
     radius: number = 10000
   ): Promise<GroceryStore[]> {
+    if (!this.apiKey) {
+      console.error('Google Places API: Cannot search stores without API key');
+      return [];
+    }
+
     const request: TextSearchRequest = {
       query,
       location: location ? `${location.lat},${location.lng}` : undefined,
@@ -352,7 +365,9 @@ export class GooglePlacesService {
     };
 
     try {
+      console.log('Google Places API: Searching for stores with query:', query);
       const response = await this.makeRequest<{ results: PlaceResult[] }>('/textsearch/json', request);
+      console.log('Google Places API: Found', response.results?.length || 0, 'stores');
       return Promise.all(
         response.results.map(place => this.convertToGroceryStore(place, location))
       );
@@ -443,11 +458,16 @@ export class GooglePlacesService {
     const storeType = this.determineStoreType(place);
     const specialties = this.extractSpecialties(place);
 
+    // Get detailed information including website and phone
+    const details = await this.getPlaceDetails(place.place_id);
+
     return {
       id: place.place_id,
       name: place.name,
       address: place.formatted_address,
       location: place.geometry.location,
+      phone: details?.formatted_phone_number,
+      website: details?.website,
       rating: place.rating,
       priceLevel: place.price_level,
       openNow: place.opening_hours?.open_now,
