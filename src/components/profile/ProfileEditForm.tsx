@@ -10,6 +10,7 @@ import { useState, useEffect } from 'react';
 import { useToast } from '@/components/ui/toast';
 import type { UserProfile } from '@/types';
 import { StoreSelectionCard, type StoreInfo } from '@/components/profile/StoreSelectionCard';
+import { SavedStoresSection } from '@/components/profile/SavedStoresSection';
 
 interface ProfileEditFormProps {
   profile: UserProfile | null;
@@ -84,6 +85,7 @@ export function ProfileEditForm({ profile, onUpdate, onRefresh }: ProfileEditFor
   const [favoriteStores, setFavoriteStores] = useState<Set<string>>(new Set());
   const [showLargeText, setShowLargeText] = useState(false);
   const [userLanguage, setUserLanguage] = useState<'en' | 'es' | 'zh' | 'vi' | 'so' | 'hmn'>('en');
+  const [savedStoresRefresh, setSavedStoresRefresh] = useState(0);
 
   // Initialize form data when profile loads
   useEffect(() => {
@@ -330,8 +332,29 @@ export function ProfileEditForm({ profile, onUpdate, onRefresh }: ProfileEditFor
       });
     };
 
+    // Function to handle adding more stores (expand discovery section)
+    const handleAddMoreStores = () => {
+      // Scroll to the discovery section or expand it
+      const discoveryElement = document.getElementById('store-discovery');
+      if (discoveryElement) {
+        discoveryElement.scrollIntoView({ behavior: 'smooth' });
+      }
+    };
+
     return (
-      <div className="space-y-4">
+      <div className="space-y-6">
+        {/* Saved Stores Management */}
+        <SavedStoresSection 
+          onAddMoreStores={handleAddMoreStores}
+          refreshTrigger={savedStoresRefresh}
+          userLanguage={userLanguage}
+          largeText={showLargeText}
+        />
+
+        {/* Store Discovery Section */}
+        <div id="store-discovery" className="border-t pt-6">
+          <h4 className="text-lg font-medium text-gray-900 mb-4">Find New Stores</h4>
+          <div className="space-y-4">
         {/* Search Controls */}
         <div className="border-b border-gray-200 pb-4">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3 items-end mb-4">
@@ -436,6 +459,8 @@ export function ProfileEditForm({ profile, onUpdate, onRefresh }: ProfileEditFor
         <p className="text-xs text-gray-500 mt-4">
           These stores will be used for live price checks and shopping plans. You can change them anytime.
         </p>
+          </div>
+        </div>
       </div>
     );
   };
@@ -541,6 +566,9 @@ export function ProfileEditForm({ profile, onUpdate, onRefresh }: ProfileEditFor
       // Clear selected state from both arrays after successful save
       setChainSuggestions(prev => prev.map(s => ({ ...s, selected: false })))
       setNearbyStores(prev => prev.map(s => ({ ...s, selected: false })))
+      
+      // Trigger refresh of saved stores section
+      setSavedStoresRefresh(prev => prev + 1)
       
       addToast({ type: 'success', title: 'Stores saved', message: `${toSave.length} stores saved with complete information for pricing` })
     } catch (e) {

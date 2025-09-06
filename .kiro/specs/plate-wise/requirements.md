@@ -347,10 +347,157 @@ PlateWise is a responsive web application designed to help families and individu
 - Wrong approach: `price = (amount needed for recipe ÷ pack size) × pack price`
 - Correct approach: `price = pack price` (user must buy at least 1 pack)
 - Example: Recipe needs 2 tbsp chives from 0.25 oz jar costing $5.99 → Display $5.99, not prorated amount
-- This ensures users understand actual checkout costs and can budget accuratelytact details, specialties, and user ratings
-5. WHEN planning shopping trips THEN the system SHALL suggest optimal store combinations based on ingredient availability and user preferences
-6. WHEN stores are added to profile THEN the system SHALL track price comparisons and ingredient availability across saved locations
-7. WHEN farmer market seasons change THEN the system SHALL notify users about seasonal produce availability and market schedules
-8. WHEN generating shopping lists THEN the system SHALL organize items by preferred stores and suggest the most cost-effective shopping route
-9. WHEN users rate stores THEN the system SHALL allow reviews and ratings to help the community discover quality local sources
-10. WHEN cultural ingredients are needed THEN the system SHALL prioritize ethnic markets and specialty stores from the user's saved locations
+- This ensures users understand actual checkout costs and can budget accurately
+
+### Requirement 24: Enhanced Cultural Pricing Intelligence System
+
+**User Story:** As someone who values cultural authenticity and budget optimization, I want an advanced pricing system that understands cultural ingredient significance, discovers ethnic markets, and provides confidence-scored pricing recommendations, so that I can maintain cultural authenticity while optimizing costs.
+
+#### Acceptance Criteria
+
+1. WHEN requesting cultural pricing THEN the system SHALL use enhanced cultural pricing service with confidence scoring and ethnic market discovery
+2. WHEN analyzing ingredients THEN the system SHALL determine cultural significance levels (essential, important, common, optional) and authenticity importance scores
+3. WHEN discovering stores THEN the system SHALL identify and recommend ethnic markets, specialty stores, and mainstream options with cultural relevance scoring
+4. WHEN providing pricing options THEN the system SHALL include multiple store options with availability, quality, and authenticity ratings
+5. WHEN calculating confidence scores THEN the system SHALL consider source reliability, cultural authenticity, price accuracy, and market coverage
+6. WHEN ethnic markets are found THEN the system SHALL store market information including cultural specialties, quality indicators, and community verification status
+7. WHEN traditional ingredient names exist THEN the system SHALL map and preserve traditional names across multiple languages and cultures
+8. WHEN bulk buying options are available THEN the system SHALL identify and recommend bulk purchasing opportunities with savings calculations
+9. WHEN shopping strategies are generated THEN the system SHALL create multi-store shopping plans that balance cost, authenticity, and convenience
+10. WHEN pricing data ages THEN the system SHALL implement intelligent caching with expiration and confidence degradation over time
+
+### Requirement 25: Advanced Recipe Import and AI Parsing
+
+**User Story:** As a user who wants to import recipes from various sources, I want intelligent recipe parsing that can extract structured data from URLs, images, and text, so that I can easily add recipes to my collection with accurate ingredient and instruction data.
+
+#### Acceptance Criteria
+
+1. WHEN a user provides a recipe URL THEN the system SHALL fetch and parse the webpage using structured data extraction and HTML parsing
+2. WHEN structured recipe data is not available THEN the system SHALL use AI-powered parsing as a fallback to extract recipe information
+3. WHEN parsing recipes THEN the system SHALL extract title, ingredients with quantities and units, instructions, cooking times, and serving information
+4. WHEN ingredient parsing occurs THEN the system SHALL normalize ingredient names and quantities for consistent pricing and nutritional analysis
+5. WHEN recipe import fails THEN the system SHALL provide clear error messages and suggest alternative import methods
+6. WHEN AI parsing is used THEN the system SHALL indicate the parsing method and confidence level to users
+7. WHEN recipes are imported THEN the system SHALL automatically categorize them by cuisine type and dietary compatibility
+8. WHEN multiple languages are detected THEN the system SHALL preserve original language content while providing translations
+9. WHEN recipe images are available THEN the system SHALL extract and store recipe images with proper attribution
+10. WHEN imported recipes are saved THEN the system SHALL immediately integrate them with pricing and nutritional analysis systems
+
+### Requirement 26: Comprehensive Store Discovery and Management
+
+**User Story:** As a user who wants to find and manage grocery stores and specialty markets, I want intelligent store discovery that finds relevant stores based on my location and cultural preferences, so that I can optimize my shopping across multiple store types.
+
+#### Acceptance Criteria
+
+1. WHEN discovering stores THEN the system SHALL use Google Places API integration with fallback to curated store databases by region
+2. WHEN location services are available THEN the system SHALL find stores within configurable radius (1-25km) with distance calculations
+3. WHEN Google Places API is unavailable THEN the system SHALL provide region-specific fallback store lists for major metropolitan areas
+4. WHEN stores are discovered THEN the system SHALL categorize them by type (mainstream, ethnic_market, specialty, organic) with cultural specialties
+5. WHEN ethnic markets are found THEN the system SHALL identify cultural specialties, languages spoken, and community ratings
+6. WHEN users save stores THEN the system SHALL allow custom notes, ratings, and specialty tags for personal reference
+7. WHEN store information is displayed THEN the system SHALL show hours, contact information, distance, and cultural relevance scores
+8. WHEN planning shopping trips THEN the system SHALL suggest optimal multi-store routes based on ingredient availability and pricing
+9. WHEN stores are rated THEN the system SHALL collect community feedback on pricing, quality, and cultural authenticity
+10. WHEN store data becomes stale THEN the system SHALL implement refresh mechanisms and community verification processes
+
+### Requirement 27: Intelligent Pricing Cache and Performance Optimization
+
+**User Story:** As a user of the pricing system, I want fast and reliable pricing information that doesn't timeout or fail, so that I can quickly get cost estimates without waiting for slow API responses.
+
+#### Acceptance Criteria
+
+1. WHEN pricing data is requested THEN the system SHALL check intelligent cache first with 48-hour TTL for fresh data
+2. WHEN cached data is unavailable THEN the system SHALL fetch fresh pricing from multiple sources (Perplexity, Kroger, estimates)
+3. WHEN API calls timeout or fail THEN the system SHALL serve stale cached data (up to 72 hours) as ultra-fast fallback
+4. WHEN pricing data is cached THEN the system SHALL store normalized ingredient names, location data, and confidence scores
+5. WHEN cache entries expire THEN the system SHALL implement automatic cleanup processes to maintain performance
+6. WHEN multiple pricing sources are available THEN the system SHALL aggregate and weight results based on source reliability
+7. WHEN confidence scores are calculated THEN the system SHALL consider data age, source reliability, and community verification
+8. WHEN pricing requests are made THEN the system SHALL implement circuit breaker patterns to prevent cascade failures
+9. WHEN cache statistics are needed THEN the system SHALL provide monitoring data on hit rates, freshness, and performance metrics
+10. WHEN pricing data is updated THEN the system SHALL implement intelligent cache invalidation and refresh strategies
+### Re
+quirement 28: Cultural Ingredient Database and Traditional Name Mapping
+
+**User Story:** As someone cooking traditional cultural recipes, I want the system to understand traditional ingredient names and cultural significance, so that I can find authentic ingredients and maintain cultural accuracy in my cooking.
+
+#### Acceptance Criteria
+
+1. WHEN cultural ingredients are stored THEN the system SHALL maintain traditional names in multiple languages with cultural origin mapping
+2. WHEN ingredient significance is determined THEN the system SHALL classify ingredients as essential, important, common, or optional for cultural authenticity
+3. WHEN traditional names are used THEN the system SHALL map between traditional names and modern commercial names for pricing lookup
+4. WHEN seasonal availability affects ingredients THEN the system SHALL track and display seasonal patterns and peak availability periods
+5. WHEN substitutions are suggested THEN the system SHALL evaluate and score the cultural impact of ingredient substitutions
+6. WHEN sourcing tips are provided THEN the system SHALL include cultural context about where and how to find authentic ingredients
+7. WHEN bulk buying is relevant THEN the system SHALL provide cultural context about traditional purchasing patterns and storage methods
+8. WHEN authenticity importance is scored THEN the system SHALL use 1-10 scale ratings to prioritize ingredient authenticity in recommendations
+9. WHEN price sensitivity is considered THEN the system SHALL understand which cultural ingredients are price-sensitive and suggest alternatives
+10. WHEN Perplexity AI enhances data THEN the system SHALL continuously improve cultural ingredient information through AI analysis
+
+### Requirement 29: Recipe-Specific Pricing Analysis and Optimization
+
+**User Story:** As a user planning to cook a specific recipe, I want detailed pricing analysis that considers the recipe's cultural context and provides optimized shopping strategies, so that I can cook authentic meals within my budget.
+
+#### Acceptance Criteria
+
+1. WHEN recipe pricing is calculated THEN the system SHALL provide comprehensive cost analysis including total cost, cost per serving, and ingredient breakdown
+2. WHEN cultural context is considered THEN the system SHALL factor recipe cultural origin into store recommendations and ingredient sourcing
+3. WHEN shopping optimization is performed THEN the system SHALL create multi-store shopping strategies that balance cost, authenticity, and convenience
+4. WHEN ingredient importance varies THEN the system SHALL prioritize essential cultural ingredients for authentic sourcing over common ingredients
+5. WHEN alternative stores are available THEN the system SHALL provide multiple shopping options with cost and authenticity trade-offs
+6. WHEN cultural authenticity is scored THEN the system SHALL rate recipes on 0-10 scale for how well ingredient sourcing maintains cultural integrity
+7. WHEN cost optimization is suggested THEN the system SHALL provide notes on potential savings without compromising cultural authenticity
+8. WHEN pricing confidence is calculated THEN the system SHALL aggregate confidence scores from multiple pricing sources and cultural factors
+9. WHEN recipe pricing expires THEN the system SHALL implement intelligent refresh cycles based on ingredient price volatility
+10. WHEN shopping time is estimated THEN the system SHALL calculate realistic shopping time including travel between multiple stores
+
+### Requirement 30: Community-Driven Price Verification and Market Discovery
+
+**User Story:** As a community member who shops at local markets, I want to contribute pricing information and discover new markets through community recommendations, so that the pricing data stays accurate and the community benefits from shared knowledge.
+
+#### Acceptance Criteria
+
+1. WHEN users report prices THEN the system SHALL allow community members to submit price corrections with photo verification
+2. WHEN price reports are submitted THEN the system SHALL validate and integrate user-reported pricing with confidence scoring
+3. WHEN community verification occurs THEN the system SHALL allow multiple users to verify price reports to increase confidence scores
+4. WHEN ethnic markets are discovered THEN the system SHALL track community mentions and build market reputation through user reports
+5. WHEN market quality is assessed THEN the system SHALL collect community feedback on quality indicators, cultural authenticity, and pricing competitiveness
+6. WHEN markets are verified THEN the system SHALL implement community verification processes for market information accuracy
+7. WHEN pricing conflicts arise THEN the system SHALL use community consensus and recency to resolve conflicting price information
+8. WHEN market specialties are identified THEN the system SHALL allow community input on cultural specialties and product availability
+9. WHEN new markets are found THEN the system SHALL enable community-driven market discovery and information sharing
+10. WHEN market data becomes stale THEN the system SHALL prompt community members to update and verify market information
+
+### Requirement 31: Advanced Cultural Pricing API Integration
+
+**User Story:** As a developer or advanced user of the platform, I want comprehensive API access to cultural pricing intelligence, so that I can integrate cultural pricing data with other applications and services.
+
+#### Acceptance Criteria
+
+1. WHEN cultural pricing is requested via API THEN the system SHALL provide comprehensive pricing analysis through RESTful endpoints
+2. WHEN ethnic markets are queried THEN the system SHALL return market recommendations with cultural specialties and quality ratings
+3. WHEN cultural ingredients are searched THEN the system SHALL provide ingredient information including traditional names and cultural significance
+4. WHEN confidence scores are requested THEN the system SHALL return detailed confidence analysis including source reliability and cultural authenticity
+5. WHEN traditional name mapping is needed THEN the system SHALL provide API endpoints for ingredient name translation across cultures
+6. WHEN cultural ingredient data is updated THEN the system SHALL allow API-based updates to cultural ingredient database with proper authentication
+7. WHEN market verification is performed THEN the system SHALL provide API endpoints for community-driven market verification processes
+8. WHEN pricing data is cached THEN the system SHALL expose cache status and freshness information through API responses
+9. WHEN API rate limiting is needed THEN the system SHALL implement proper throttling and authentication for API access
+10. WHEN API errors occur THEN the system SHALL provide detailed error responses with fallback options and retry guidance
+
+### Requirement 32: Enhanced Recipe Schema and Validation
+
+**User Story:** As a developer working with recipe data, I want robust recipe schema validation and type safety, so that recipe data is consistent and reliable across the application.
+
+#### Acceptance Criteria
+
+1. WHEN recipe data is processed THEN the system SHALL use Zod schema validation for runtime type checking and data validation
+2. WHEN ingredients are parsed THEN the system SHALL validate ingredient structure including item name, quantity, unit, and notes
+3. WHEN instructions are processed THEN the system SHALL ensure proper step numbering and text content validation
+4. WHEN nutritional data is included THEN the system SHALL validate nutritional information structure and value ranges
+5. WHEN recipe metadata is stored THEN the system SHALL validate servings, timing, difficulty, and cultural information
+6. WHEN recipe responses are generated THEN the system SHALL ensure consistent response structure with metadata and source information
+7. WHEN recipe search filters are applied THEN the system SHALL validate filter parameters including cultural context and dietary restrictions
+8. WHEN JSON schema is used THEN the system SHALL maintain compatibility between Zod schemas and JSON Schema for API documentation
+9. WHEN recipe data is imported THEN the system SHALL provide detailed validation errors for malformed recipe data
+10. WHEN recipe scaling occurs THEN the system SHALL validate scaled quantities and maintain data integrity across transformations

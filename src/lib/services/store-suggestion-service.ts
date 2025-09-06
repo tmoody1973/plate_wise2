@@ -136,12 +136,17 @@ export class StoreSuggestionService {
           for (const store of candidates) {
             // Fetch details for accurate address components and status
             const details = await googlePlacesService.getPlaceDetails(store.id)
-            if (!details) continue
-            const businessOk = (details.business_status || 'OPERATIONAL') === 'OPERATIONAL'
-            const reviewOk = (details.user_ratings_total || 0) >= 50
-            const ratingOk = (store.rating || 0) >= 3.8
-            const cityOk = matchesCityZip(details, { city, state, zipCode })
-            if (businessOk && reviewOk && ratingOk && cityOk) {
+            if (!details) {
+              console.log(`No details for store ${store.name}`)
+              continue
+            }
+            const businessOk = !details.business_status || details.business_status === 'OPERATIONAL'
+            const reviewOk = (details.user_ratings_total || 0) >= 10  // Lowered from 50
+            const ratingOk = (store.rating || 0) >= 3.5  // Lowered from 3.8
+            
+            console.log(`Store ${store.name}: business=${businessOk}, reviews=${details.user_ratings_total}(${reviewOk}), rating=${store.rating}(${ratingOk})`)
+            
+            if (businessOk && reviewOk && ratingOk) {
               bestCandidate = { store, details }
               break
             }
