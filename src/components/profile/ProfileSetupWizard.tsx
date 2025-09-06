@@ -215,9 +215,9 @@ export function ProfileSetupWizard({ isUpdate = false }: ProfileSetupWizardProps
           traditionalCookingMethods: (profile.preferences as any).traditionalCookingMethods || [],
         },
         dietaryRestrictions: {
-          dietaryRestrictions: profile.preferences.dietaryRestrictions,
-          allergies: profile.preferences.allergies,
-          dislikes: profile.preferences.dislikes,
+          dietaryRestrictions: profile.preferences.dietaryRestrictions || [],
+          allergies: profile.preferences.allergies || [],
+          dislikes: profile.preferences.dislikes || [],
           religiousRestrictions: (profile.preferences as any).religiousRestrictions || [],
         },
         budgetSettings: {
@@ -227,20 +227,28 @@ export function ProfileSetupWizard({ isUpdate = false }: ProfileSetupWizardProps
           priorityCategories: (profile.budget as any).priorityCategories || [],
         },
         nutritionalGoals: {
-          calorieTarget: profile.nutritionalGoals.calorieTarget,
-          macroTargets: profile.nutritionalGoals.macroTargets,
-          healthGoals: profile.nutritionalGoals.healthGoals,
-          activityLevel: profile.nutritionalGoals.activityLevel,
+          calorieTarget: profile.nutritionalGoals.calorieTarget || 2000,
+          macroTargets: profile.nutritionalGoals.macroTargets || { protein: 25, carbs: 50, fat: 25 },
+          healthGoals: profile.nutritionalGoals.healthGoals || [],
+          activityLevel: profile.nutritionalGoals.activityLevel || 'moderate',
         },
         cookingProfile: {
-          skillLevel: profile.cookingProfile.skillLevel,
-          availableTime: profile.cookingProfile.availableTime,
-          equipment: profile.cookingProfile.equipment,
-          mealPrepPreference: profile.cookingProfile.mealPrepPreference,
+          skillLevel: profile.cookingProfile.skillLevel || 'intermediate',
+          availableTime: profile.cookingProfile.availableTime || 30,
+          equipment: profile.cookingProfile.equipment || [],
+          mealPrepPreference: profile.cookingProfile.mealPrepPreference || false,
           cookingFrequency: (profile.cookingProfile as any).cookingFrequency || 'daily',
         },
       };
 
+      console.log('Loading existing profile data for update:', {
+        healthGoals: existingData.nutritionalGoals.healthGoals,
+        dietaryRestrictions: existingData.dietaryRestrictions.dietaryRestrictions,
+        allergies: existingData.dietaryRestrictions.allergies,
+        equipment: existingData.cookingProfile.equipment,
+        cookingFrequency: existingData.cookingProfile.cookingFrequency
+      });
+      
       setProfileData(existingData);
       setIsLoadingProfile(false);
     }

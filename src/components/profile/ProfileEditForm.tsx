@@ -112,9 +112,9 @@ export function ProfileEditForm({ profile, onUpdate, onRefresh }: ProfileEditFor
           dislikes: profile.preferences?.dislikes || [],
           preferFreshProduce: (profile.preferences as any)?.preferFreshProduce ?? true,
           // Additional fields from wizard (stored as metadata)
-          // culturalBackground: (profile.preferences as any)?.culturalBackground || [],
-          // traditionalCookingMethods: (profile.preferences as any)?.traditionalCookingMethods || [],
-          // religiousRestrictions: (profile.preferences as any)?.religiousRestrictions || []
+          culturalBackground: (profile.preferences as any)?.culturalBackground || [],
+          traditionalCookingMethods: (profile.preferences as any)?.traditionalCookingMethods || [],
+          religiousRestrictions: (profile.preferences as any)?.religiousRestrictions || []
         },
         budget: profile.budget || {
           monthlyLimit: 0,
@@ -133,7 +133,7 @@ export function ProfileEditForm({ profile, onUpdate, onRefresh }: ProfileEditFor
           equipment: profile.cookingProfile?.equipment || [],
           mealPrepPreference: profile.cookingProfile?.mealPrepPreference || false,
           // Additional field from wizard (stored as metadata)
-          // cookingFrequency: (profile.cookingProfile as any)?.cookingFrequency || 'daily'
+          cookingFrequency: (profile.cookingProfile as any)?.cookingFrequency || 'daily'
         }
       };
       
@@ -178,14 +178,19 @@ export function ProfileEditForm({ profile, onUpdate, onRefresh }: ProfileEditFor
   };
 
   const handleFieldChange = (field: string, value: any, section?: string) => {
-    console.log('Field change:', { field, value, section }); // Debug log
+    console.log('Field change:', { field, value, section, currentValue: section ? (formData as any)[section]?.[field] : (formData as any)[field] }); // Enhanced debug log
     
     setFormData(prev => {
       const updated = { ...prev };
       
       if (section) {
         // Handle nested object updates with proper type safety
-        const currentSection = prev[section as keyof UserProfile] as any;
+        // Ensure the section exists
+        if (!updated[section as keyof UserProfile]) {
+          (updated as any)[section] = {};
+        }
+        
+        const currentSection = updated[section as keyof UserProfile] as any;
         updated[section as keyof UserProfile] = {
           ...currentSection,
           [field]: value,
@@ -195,7 +200,11 @@ export function ProfileEditForm({ profile, onUpdate, onRefresh }: ProfileEditFor
         (updated as any)[field] = value;
       }
       
-      console.log('Updated form data:', updated); // Debug log
+      console.log('Updated form data:', { 
+        section: section ? updated[section as keyof UserProfile] : updated,
+        field,
+        newValue: value 
+      }); // Enhanced debug log
       return updated;
     });
     
@@ -521,25 +530,29 @@ export function ProfileEditForm({ profile, onUpdate, onRefresh }: ProfileEditFor
             <span className="text-sm font-normal text-gray-600 ml-2">(Optional)</span>
           </label>
           <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
-            {CULTURAL_BACKGROUNDS.map((background) => (
-              <button
-                key={background}
-                onClick={() => {
-                  const current = (formData.preferences as any)?.culturalBackground || [];
-                  const updated = current.includes(background)
-                    ? current.filter((b: string) => b !== background)
-                    : [...current, background];
-                  handleFieldChange('culturalBackground', updated, 'preferences');
-                }}
-                className={`px-3 py-2 rounded-lg text-sm transition-colors ${
-                  (formData.preferences as any)?.culturalBackground?.includes(background)
-                    ? 'bg-green-500 text-white'
-                    : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-                }`}
-              >
-                {background}
-              </button>
-            ))}
+            {CULTURAL_BACKGROUNDS.map((background) => {
+              const isSelected = (formData.preferences as any)?.culturalBackground?.includes(background) || false;
+              return (
+                <button
+                  key={background}
+                  type="button"
+                  onClick={() => {
+                    const current = (formData.preferences as any)?.culturalBackground || [];
+                    const updated = current.includes(background)
+                      ? current.filter((b: string) => b !== background)
+                      : [...current, background];
+                    handleFieldChange('culturalBackground', updated, 'preferences');
+                  }}
+                  className={`px-3 py-2 rounded-lg text-sm transition-colors ${
+                    isSelected
+                      ? 'bg-green-500 text-white hover:bg-green-600'
+                      : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                  }`}
+                >
+                  {background}
+                </button>
+              );
+            })}
           </div>
         </div>
 
@@ -550,25 +563,29 @@ export function ProfileEditForm({ profile, onUpdate, onRefresh }: ProfileEditFor
             <span className="text-sm font-normal text-gray-600 ml-2">(Optional)</span>
           </label>
           <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
-            {COOKING_METHODS.map((method) => (
-              <button
-                key={method.id}
-                onClick={() => {
-                  const current = (formData.preferences as any)?.traditionalCookingMethods || [];
-                  const updated = current.includes(method.id)
-                    ? current.filter((m: string) => m !== method.id)
-                    : [...current, method.id];
-                  handleFieldChange('traditionalCookingMethods', updated, 'preferences');
-                }}
-                className={`px-3 py-2 rounded-lg text-sm transition-colors ${
-                  (formData.preferences as any)?.traditionalCookingMethods?.includes(method.id)
-                    ? 'bg-orange-500 text-white'
-                    : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-                }`}
-              >
-                {method.name}
-              </button>
-            ))}
+            {COOKING_METHODS.map((method) => {
+              const isSelected = (formData.preferences as any)?.traditionalCookingMethods?.includes(method.id) || false;
+              return (
+                <button
+                  key={method.id}
+                  type="button"
+                  onClick={() => {
+                    const current = (formData.preferences as any)?.traditionalCookingMethods || [];
+                    const updated = current.includes(method.id)
+                      ? current.filter((m: string) => m !== method.id)
+                      : [...current, method.id];
+                    handleFieldChange('traditionalCookingMethods', updated, 'preferences');
+                  }}
+                  className={`px-3 py-2 rounded-lg text-sm transition-colors ${
+                    isSelected
+                      ? 'bg-orange-500 text-white hover:bg-orange-600'
+                      : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                  }`}
+                >
+                  {method.name}
+                </button>
+              );
+            })}
           </div>
         </div>
         
@@ -676,25 +693,29 @@ export function ProfileEditForm({ profile, onUpdate, onRefresh }: ProfileEditFor
           Dietary Restrictions
         </label>
         <div className="flex flex-wrap gap-2">
-          {['Vegetarian', 'Vegan', 'Pescatarian', 'Keto', 'Paleo', 'Gluten-Free', 'Dairy-Free', 'Low-Carb', 'Low-Fat', 'Halal', 'Kosher'].map((restriction) => (
-            <button
-              key={restriction}
-              onClick={() => {
-                const current = formData.preferences?.dietaryRestrictions || [];
-                const updated = current.includes(restriction)
-                  ? current.filter(r => r !== restriction)
-                  : [...current, restriction];
-                handleFieldChange('dietaryRestrictions', updated, 'preferences');
-              }}
-              className={`px-3 py-2 rounded-lg text-sm transition-colors ${
-                formData.preferences?.dietaryRestrictions?.includes(restriction)
-                  ? 'bg-red-500 text-white'
-                  : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-              }`}
-            >
-              {restriction}
-            </button>
-          ))}
+          {['Vegetarian', 'Vegan', 'Pescatarian', 'Keto', 'Paleo', 'Gluten-Free', 'Dairy-Free', 'Low-Carb', 'Low-Fat', 'Halal', 'Kosher'].map((restriction) => {
+            const isSelected = formData.preferences?.dietaryRestrictions?.includes(restriction) || false;
+            return (
+              <button
+                key={restriction}
+                type="button"
+                onClick={() => {
+                  const current = formData.preferences?.dietaryRestrictions || [];
+                  const updated = current.includes(restriction)
+                    ? current.filter(r => r !== restriction)
+                    : [...current, restriction];
+                  handleFieldChange('dietaryRestrictions', updated, 'preferences');
+                }}
+                className={`px-3 py-2 rounded-lg text-sm transition-colors ${
+                  isSelected
+                    ? 'bg-red-500 text-white hover:bg-red-600'
+                    : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                }`}
+              >
+                {restriction}
+              </button>
+            );
+          })}
         </div>
       </div>
 
@@ -806,25 +827,29 @@ export function ProfileEditForm({ profile, onUpdate, onRefresh }: ProfileEditFor
           Health Goals
         </label>
         <div className="flex flex-wrap gap-2">
-          {['Weight Loss', 'Weight Gain', 'Muscle Building', 'Heart Health', 'Lower Cholesterol', 'Manage Diabetes', 'Increase Energy', 'Better Digestion', 'Improve Sleep'].map((goal) => (
-            <button
-              key={goal}
-              onClick={() => {
-                const current = formData.nutritionalGoals?.healthGoals || [];
-                const updated = current.includes(goal)
-                  ? current.filter(g => g !== goal)
-                  : [...current, goal];
-                handleFieldChange('healthGoals', updated, 'nutritionalGoals');
-              }}
-              className={`px-3 py-2 rounded-lg text-sm transition-colors ${
-                formData.nutritionalGoals?.healthGoals?.includes(goal)
-                  ? 'bg-green-500 text-white'
-                  : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-              }`}
-            >
-              {goal}
-            </button>
-          ))}
+          {['Weight Loss', 'Weight Gain', 'Muscle Building', 'Heart Health', 'Lower Cholesterol', 'Manage Diabetes', 'Increase Energy', 'Better Digestion', 'Improve Sleep'].map((goal) => {
+            const isSelected = formData.nutritionalGoals?.healthGoals?.includes(goal) || false;
+            return (
+              <button
+                key={goal}
+                type="button"
+                onClick={() => {
+                  const current = formData.nutritionalGoals?.healthGoals || [];
+                  const updated = current.includes(goal)
+                    ? current.filter(g => g !== goal)
+                    : [...current, goal];
+                  handleFieldChange('healthGoals', updated, 'nutritionalGoals');
+                }}
+                className={`px-3 py-2 rounded-lg text-sm transition-colors ${
+                  isSelected
+                    ? 'bg-green-500 text-white hover:bg-green-600'
+                    : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                }`}
+              >
+                {goal}
+              </button>
+            );
+          })}
         </div>
       </div>
 
@@ -981,20 +1006,24 @@ export function ProfileEditForm({ profile, onUpdate, onRefresh }: ProfileEditFor
             Cooking Frequency
           </label>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            {COOKING_FREQUENCIES.map((frequency) => (
-              <button
-                key={frequency.id}
-                onClick={() => handleFieldChange('cookingFrequency', frequency.id, 'cookingProfile')}
-                className={`p-3 rounded-lg border-2 text-left transition-colors ${
-                  (formData.cookingProfile as any)?.cookingFrequency === frequency.id
-                    ? 'border-green-500 bg-green-50'
-                    : 'border-gray-200 hover:border-gray-300'
-                }`}
-              >
-                <div className="font-medium text-gray-900">{frequency.name}</div>
-                <div className="text-sm text-gray-600 mt-1">{frequency.description}</div>
-              </button>
-            ))}
+            {COOKING_FREQUENCIES.map((frequency) => {
+              const isSelected = (formData.cookingProfile as any)?.cookingFrequency === frequency.id;
+              return (
+                <button
+                  key={frequency.id}
+                  type="button"
+                  onClick={() => handleFieldChange('cookingFrequency', frequency.id, 'cookingProfile')}
+                  className={`p-3 rounded-lg border-2 text-left transition-colors ${
+                    isSelected
+                      ? 'border-green-500 bg-green-50 hover:bg-green-100'
+                      : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
+                  }`}
+                >
+                  <div className="font-medium text-gray-900">{frequency.name}</div>
+                  <div className="text-sm text-gray-600 mt-1">{frequency.description}</div>
+                </button>
+              );
+            })}
           </div>
         </div>
 
