@@ -236,6 +236,8 @@ export default function MealPlannerV2() {
     try {
       const saved = localStorage.getItem('mealplan-advanced-open')
       if (saved != null) setAdvancedOpen(saved === '1')
+      const mode = localStorage.getItem('mealplan-cost-mode') as 'package' | 'proportional' | null
+      if (mode === 'package' || mode === 'proportional') setConfig(prev => ({ ...prev, costMode: mode }))
     } catch {}
   }, []);
 
@@ -269,6 +271,53 @@ export default function MealPlannerV2() {
   useEffect(() => {
     try { localStorage.setItem('mealplan-advanced-open', advancedOpen ? '1' : '0') } catch {}
   }, [advancedOpen])
+
+  // Persist costing mode
+  useEffect(() => {
+    try { localStorage.setItem('mealplan-cost-mode', config.costMode) } catch {}
+  }, [config.costMode])
+
+  // Helper: scan cheaper swaps (used by sidebar button and totals modal link)
+  const scanCheaperSwaps = async () => {
+    try {
+      setCheaperLoading(true)
+      const suggestions: Array<any> = []
+      const flat: Array<{ r: Recipe; ing: any; rIdx: number; iIdx: number }> = []
+      recipes.forEach((r, rIdx) => r.ingredients.forEach((ing, iIdx) => {
+        if (ing.krogerPrice && ing.krogerPrice.unitPrice) flat.push({ r, ing, rIdx, iIdx })
+      }))
+      flat.sort((a,b) => (b.ing.krogerPrice.unitPrice||0) - (a.ing.krogerPrice.unitPrice||0))
+      for (const item of flat.slice(0, 10)) {
+        const q = encodeURIComponent(item.ing.name)
+        const resp = await fetch(`/api/ingredients/search?q=${q}&zipCode=${zipCode}&limit=6`)
+        const j = await resp.json()
+        const list: SearchResult[] = j?.results || []
+        let best: { res: SearchResult; unit: number } | null = null
+        for (const res of list) {
+          const pack = parseSizeToBase(res.size)
+          if (!pack) continue
+          const price = res.onSale && res.salePrice ? res.salePrice : res.price
+          const unit = price / (pack.qty || 1)
+          if (!best || unit < best.unit) best = { res, unit }
+        }
+        if (best && best.unit < (item.ing.krogerPrice.unitPrice || Infinity) * 0.9) {
+          suggestions.push({
+            recipeId: item.r.id,
+            ingredientId: item.ing.id,
+            ingredientName: item.ing.name,
+            currentUnitPrice: item.ing.krogerPrice.unitPrice,
+            suggestion: best.res,
+            suggestionUnitPrice: best.unit,
+            savingsPerUnit: (item.ing.krogerPrice.unitPrice || 0) - best.unit,
+          })
+          if (suggestions.length >= 5) break
+        }
+      }
+      setCheaperSuggestions(suggestions)
+    } finally {
+      setCheaperLoading(false)
+    }
+  }
 
   if (!mounted) {
     return <div>Loading...</div>;
@@ -1366,51 +1415,7 @@ export default function MealPlannerV2() {
                   <button
                     className="text-sm px-3 py-1 border rounded hover:bg-gray-50 disabled:opacity-50"
                     disabled={cheaperLoading}
-                    onClick={async () => {
-                      try {
-                        setCheaperLoading(true)
-                        const suggestions: Array<any> = []
-                        // scan ingredients with pricing
-                        const flat: Array<{ r: Recipe; ing: any; rIdx: number; iIdx: number }> = []
-                        recipes.forEach((r, rIdx) => r.ingredients.forEach((ing, iIdx) => {
-                          if (ing.krogerPrice && ing.krogerPrice.unitPrice) flat.push({ r, ing, rIdx, iIdx })
-                        }))
-                        // sort by highest unit price first
-                        flat.sort((a,b) => (b.ing.krogerPrice.unitPrice||0) - (a.ing.krogerPrice.unitPrice||0))
-                        // check top 10 ingredients max, stop after 5 suggestions
-                        for (const item of flat.slice(0, 10)) {
-                          const q = encodeURIComponent(item.ing.name)
-                          const resp = await fetch(`/api/ingredients/search?q=${q}&zipCode=${zipCode}&limit=6`)
-                          const j = await resp.json()
-                          const list: SearchResult[] = j?.results || []
-                          let best: { res: SearchResult; unit: number } | null = null
-                          for (const res of list) {
-                            const pack = parseSizeToBase(res.size)
-                            if (!pack) continue
-                            const price = res.onSale && res.salePrice ? res.salePrice : res.price
-                            const unit = price / (pack.qty || 1)
-                            if (!best || unit < best.unit) best = { res, unit }
-                          }
-                          if (best && best.unit < (item.ing.krogerPrice.unitPrice || Infinity) * 0.9) {
-                            suggestions.push({
-                              recipeId: item.r.id,
-                              ingredientId: item.ing.id,
-                              ingredientName: item.ing.name,
-                              currentUnitPrice: item.ing.krogerPrice.unitPrice,
-                              suggestion: best.res,
-                              suggestionUnitPrice: best.unit,
-                              savingsPerUnit: (item.ing.krogerPrice.unitPrice || 0) - best.unit,
-                            })
-                            if (suggestions.length >= 5) break
-                          }
-                        }
-                        setCheaperSuggestions(suggestions)
-                      } catch (e) {
-                        console.error('cheaper swaps failed', e)
-                      } finally {
-                        setCheaperLoading(false)
-                      }
-                    }}
+                    onClick={scanCheaperSwaps}
                   >{cheaperLoading ? 'Scanning…' : 'Find Cheaper Swaps'}</button>
                 </div>
                 {cheaperSuggestions.length === 0 ? (
@@ -1487,6 +1492,13 @@ export default function MealPlannerV2() {
                   ))}
                 </ul>
               )}
+              <div className="mt-3 text-right">
+                <button
+                  className="text-sm px-3 py-1 border rounded hover:bg-gray-50 disabled:opacity-50"
+                  disabled={cheaperLoading}
+                  onClick={async () => { setShowTotalsExplainer(false); await scanCheaperSwaps(); setStep('pricing') }}
+                >{cheaperLoading ? 'Scanning…' : 'View all highest savings'}</button>
+              </div>
             </div>
             <div className="text-right">
               <button className="px-3 py-2 border rounded" onClick={() => setShowTotalsExplainer(false)}>Close</button>
