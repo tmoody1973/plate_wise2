@@ -40,7 +40,7 @@ export function MainNavigation({ className = '', showBreadcrumb = true }: MainNa
   const handleSignOut = async () => {
     const result = await signOut();
     if (result.success) {
-      router.push('/auth');
+      router.push('/sign-in');
     }
   };
 
@@ -278,7 +278,7 @@ export function SimpleNavigation({ className = '', showBreadcrumb = false }: Mai
   const handleSignOut = async () => {
     const result = await signOut();
     if (result.success) {
-      router.push('/auth');
+      router.push('/sign-in');
     }
   };
 
