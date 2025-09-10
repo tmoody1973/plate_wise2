@@ -307,12 +307,23 @@ export default function RecipeExpandableCard({
                                 }`}>
                                   ${ingredient.krogerPrice.totalCost.toFixed(2)}
                                 </span>
+                                {ingredient.krogerPrice.unitPrice && ( 
+                                  <div className="text-xs text-gray-500">${ingredient.krogerPrice.unitPrice.toFixed(2)} per {ingredient.krogerPrice.baseUnit || 'unit'}</div>
+                                )}
+                                {ingredient.krogerPrice.packageCount && ingredient.krogerPrice.packageSize && (
+                                  <div className="text-xs text-gray-500">
+                                    {ingredient.krogerPrice.packageCount} pkg × {Math.round(ingredient.krogerPrice.packageSize)} {ingredient.krogerPrice.baseUnit || ''}
+                                    {typeof ingredient.krogerPrice.leftoverAmount === 'number' && ingredient.krogerPrice.leftoverAmount > 0 ? (
+                                      <span> • leftover ~{Math.round(ingredient.krogerPrice.leftoverAmount)} {ingredient.krogerPrice.baseUnit || ''}</span>
+                                    ) : null}
+                                  </div>
+                                )}
                                 {ingredient.krogerPrice.onSale && (
                                   <div className="text-sm text-red-600 font-medium">ON SALE!</div>
                                 )}
-                                <div className="text-sm text-gray-500">
-                                  @ {ingredient.krogerPrice.storeLocation}
-                                </div>
+                                {ingredient.krogerPrice.storeLocation && (
+                                  <div className="text-sm text-gray-500">@ {ingredient.krogerPrice.storeLocation}</div>
+                                )}
                               </div>
                             )}
                           </div>

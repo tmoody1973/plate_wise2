@@ -1304,6 +1304,24 @@ export default function MealPlannerV2() {
                         })()}
                         {result.isBestMatch && <span className="ml-2 text-blue-600 text-xs">BEST MATCH</span>}
                       </div>
+                      {(() => {
+                        // Coverage preview against current ingredient
+                        try {
+                          const rec = recipes.find(r => r.id === searchingIngredient?.recipeId)
+                          const ing = rec?.ingredients.find(i => i.id === searchingIngredient?.ingredientId)
+                          if (!ing) return null
+                          const comp = computeIngredientCost({ amount: ing.amount, unit: ing.unit }, { price: result.onSale && result.salePrice ? result.salePrice : result.price, size: result.size }, true)
+                          if (!comp) return null
+                          const needed = Math.round(comp.required)
+                          const packSz = Math.round(comp.packageSize)
+                          const leftover = Math.max(0, Math.round(comp.leftover))
+                          return (
+                            <div className="text-xs text-gray-500 mt-1">
+                              Needs {needed} {comp.base}; package {packSz} {comp.base}; buy {comp.packageCount} • leftover ~{leftover} {comp.base}
+                            </div>
+                          )
+                        } catch { return null }
+                      })()}
                     </div>
                     <div className="text-right">
                       <div className="font-bold text-green-600">
