@@ -473,6 +473,11 @@ export default function MealPlannerV2() {
       if (data.success) {
         setRecipes(data.data.recipes);
         setStep('pricing');
+        try {
+          const total = (data.data.recipes || []).reduce((sum: number, r: any) => sum + (r?.pricing?.totalCost || 0), 0)
+          const estimated = (data.data.recipes || []).reduce((cnt: number, r: any) => cnt + (r?.ingredients || []).filter((ing: any) => (ing?.krogerPrice as any)?.adjusted).length, 0)
+          localStorage.setItem('mealplan-last-total', JSON.stringify({ totalCost: total, estimatedItems: estimated, mode: config.costMode, ts: Date.now() }))
+        } catch {}
       } else {
         setError(data.error || 'Failed to get pricing information. Please try again.');
       }
