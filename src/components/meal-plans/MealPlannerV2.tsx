@@ -228,6 +228,8 @@ export default function MealPlannerV2() {
     suggestionUnitPrice: number;
     savingsPerUnit: number;
   }>>([])
+  const [showTotalsExplainer, setShowTotalsExplainer] = useState(false)
+  const [totalsExplainerData, setTotalsExplainerData] = useState<{ planTotal: number; mode: string; estimatedCount: number; ingredientSum: number; top: Array<{ recipeId: string; ingredientId: string; name: string; total: number }> }>({ planTotal: 0, mode: '', estimatedCount: 0, ingredientSum: 0, top: [] })
 
   useEffect(() => {
     setMounted(true);
@@ -1223,26 +1225,28 @@ export default function MealPlannerV2() {
                       <span className="text-blue-600">Streaming {streamProgress.index}/{streamProgress.total}</span>
                     )}
                     {step === 'pricing' && (
-                      (() => {
-                        const totals = (() => {
-                          let plan = 0; let ingr = 0; let est = 0; let all = 0
+                      <button
+                        className="text-sm text-gray-600 underline decoration-dotted"
+                        onClick={() => {
+                          // compute data for explainer
+                          let plan = 0; let ingr = 0; let est = 0
+                          const list: Array<{ recipeId: string; ingredientId: string; name: string; total: number }> = []
                           for (const r of recipes) {
                             plan += r.pricing?.totalCost || 0
                             for (const ing of r.ingredients) {
-                              if ((ing.krogerPrice as any)?.adjusted) est++
-                              if (ing.krogerPrice && typeof ing.krogerPrice.totalCost === 'number') ingr += ing.krogerPrice.totalCost
-                              all++
+                              if ((ing as any).krogerPrice?.totalCost) {
+                                const t = (ing as any).krogerPrice.totalCost as number
+                                ingr += t
+                                list.push({ recipeId: r.id, ingredientId: ing.id, name: ing.name, total: t })
+                              }
+                              if ((ing as any).krogerPrice?.adjusted) est++
                             }
                           }
-                          return { plan, ingr, est, all }
-                        })()
-                        const text = `Total: $${totals.plan.toFixed(2)}\nCosting mode: ${config.costMode}\nEstimated items: ${totals.est}\nPriced ingredients (sum): $${totals.ingr.toFixed(2)}\nWater/ice excluded from pricing.`
-                        return (
-                          <span className="text-sm text-gray-600">
-                            <span className="underline decoration-dotted cursor-help" title={text}>Explain total</span>
-                          </span>
-                        )
-                      })()
+                          list.sort((a,b) => b.total - a.total)
+                          setTotalsExplainerData({ planTotal: plan, mode: config.costMode, estimatedCount: est, ingredientSum: ingr, top: list.slice(0,3) })
+                          setShowTotalsExplainer(true)
+                        }}
+                      >Explain total</button>
                     )}
                   </div>
                   {config.costMode === 'proportional' && (
@@ -1409,6 +1413,52 @@ export default function MealPlannerV2() {
               </div>
             </div>
           )}
+        </div>
+      )}
+
+      {/* Totals Explainer Modal */}
+      {showTotalsExplainer && (
+        <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center" onClick={() => setShowTotalsExplainer(false)}>
+          <div className="bg-white rounded-lg shadow-lg w-full max-w-md p-5" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-lg font-semibold">Plan Total Breakdown</h3>
+              <button className="text-gray-500 hover:text-gray-700" onClick={() => setShowTotalsExplainer(false)}>✕</button>
+            </div>
+            <div className="text-sm text-gray-800 space-y-1 mb-3">
+              <div>Total: <span className="font-semibold">${totalsExplainerData.planTotal.toFixed(2)}</span></div>
+              <div>Costing mode: <span className="font-semibold">{totalsExplainerData.mode}</span></div>
+              <div>Estimated items: <span className="font-semibold">{totalsExplainerData.estimatedCount}</span></div>
+              <div>Priced ingredients (sum): <span className="font-semibold">${totalsExplainerData.ingredientSum.toFixed(2)}</span></div>
+              <div className="text-gray-600">Water/ice are excluded from pricing.</div>
+            </div>
+            <div className="mb-2">
+              <div className="font-medium mb-1">Top cost drivers</div>
+              {totalsExplainerData.top.length === 0 ? (
+                <div className="text-sm text-gray-600">No items to show.</div>
+              ) : (
+                <ul className="space-y-2">
+                  {totalsExplainerData.top.map((it, idx) => (
+                    <li key={idx} className="flex items-center justify-between text-sm">
+                      <span className="truncate mr-2">{it.name}</span>
+                      <div className="flex items-center gap-2">
+                        <span className="text-gray-700">${it.total.toFixed(2)}</span>
+                        <button
+                          className="px-2 py-1 border rounded hover:bg-gray-50"
+                          onClick={() => {
+                            setShowTotalsExplainer(false)
+                            searchIngredient(it.recipeId, it.ingredientId, it.name)
+                          }}
+                        >Swap</button>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+            <div className="text-right">
+              <button className="px-3 py-2 border rounded" onClick={() => setShowTotalsExplainer(false)}>Close</button>
+            </div>
+          </div>
         </div>
       )}
 
