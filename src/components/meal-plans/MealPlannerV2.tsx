@@ -122,16 +122,19 @@ function toBaseUnits(amount: number, unit: string): { value: number; base: 'g'|'
 
 function parseSizeToBase(size: string): { qty: number; base: 'g'|'ml'|'each' } | null {
   const s = (size || '').toLowerCase()
-  // Extract first number+unit like "14 oz", "500 g", "1 lb", "1 l"
-  const m = s.match(/(\d+(?:\.\d+)?)\s*(oz|ounce|ounces|lb|pound|pounds|g|gram|grams|kg|l|liter|liters|ml|milliliter|milliliters)\b/)
+  // Normalize common variants
+  const norm = s.replace(/fl\s*oz/g, 'floz').replace(/fluid\s*ounce(s)?/g, 'floz')
+  // Extract weight/volume patterns like 14 oz, 500g, 1 lb, 33.8 floz, 1 l
+  const m = norm.match(/(\d+(?:\.\d+)?)\s*(floz|oz|ounce|ounces|lb|pound|pounds|g|gram|grams|kg|l|liter|liters|ml|milliliter|milliliters)\b/)
   if (m) {
     const qty = parseFloat(m[1] || '0')
     const unit = m[2] || ''
-    const conv = toBaseUnits(qty, unit)
+    // Map floz to ml explicitly
+    const conv = unit === 'floz' ? { value: qty * 29.5735, base: 'ml' as const } : toBaseUnits(qty, unit)
     return { qty: conv.value, base: conv.base }
   }
   // Each fallback: check for counts like "12 count" or lack of units
-  const c = s.match(/(\d+)\s*(count|ct|pk|pack|pieces?)?/)
+  const c = norm.match(/(\d+)\s*(count|ct|pk|pack|pieces?)\b/)
   if (c) return { qty: parseFloat(c[1] || '1'), base: 'each' }
   return null
 }
@@ -140,20 +143,30 @@ function computeIngredientCost(
   ingredient: { amount: string; unit: string },
   product: { price: number; size: string },
   byPackage: boolean = true
-): { unitPrice: number; totalCost: number; packageCount: number; base: 'g'|'ml'|'each'; packageSize: number; required: number; leftover: number } | null {
+): { unitPrice: number; totalCost: number; packageCount: number; base: 'g'|'ml'|'each'; packageSize: number; required: number; leftover: number; adjusted?: boolean } | null {
   const reqAmt = parseMixedNumber(ingredient.amount || '0')
   const reqConv = toBaseUnits(reqAmt, ingredient.unit || '')
-  const pack = parseSizeToBase(product.size || '')
-  if (!pack || !Number.isFinite(product.price) || product.price <= 0) return null
+  let pack = parseSizeToBase(product.size || '')
+  if (!Number.isFinite(product.price) || product.price <= 0) return null
+  let adjusted = false
+  // If we cannot parse size or it is count while ingredient needs weight/volume, assume typical package
+  const DEFAULTS: Record<'g'|'ml', number> = { g: 454, ml: 473 }
+  if (!pack) {
+    if (reqConv.base !== 'each') { pack = { qty: DEFAULTS[reqConv.base], base: reqConv.base }; adjusted = true }
+    else { pack = { qty: 1, base: 'each' }; adjusted = true }
+  }
+  if (pack.base === 'each' && reqConv.base !== 'each') { pack = { qty: DEFAULTS[reqConv.base], base: reqConv.base }; adjusted = true }
   const unitPrice = product.price / (pack.qty || 1)
   if (byPackage) {
-    const packages = Math.max(1, Math.ceil((reqConv.value || 0) / pack.qty))
+    let packages = Math.max(1, Math.ceil((reqConv.value || 0) / pack.qty))
+    // sanity guard: if we need more than 20 packages for a small amount, clamp to 1 and mark adjusted
+    if ((reqConv.value || 0) > 0 && packages > 20 && (reqConv.value || 0) < 2000) { packages = 1; adjusted = true }
     const total = packages * product.price
     const leftover = packages * pack.qty - (reqConv.value || 0)
-    return { unitPrice, totalCost: total, packageCount: packages, base: pack.base, packageSize: pack.qty, required: reqConv.value || 0, leftover: Math.max(0, leftover) }
+    return { unitPrice, totalCost: total, packageCount: packages, base: pack.base, packageSize: pack.qty, required: reqConv.value || 0, leftover: Math.max(0, leftover), adjusted }
   } else {
     const total = (reqConv.value || 0) * unitPrice
-    return { unitPrice, totalCost: total, packageCount: 1, base: pack.base, packageSize: pack.qty, required: reqConv.value || 0, leftover: Math.max(0, pack.qty - (reqConv.value || 0)) }
+    return { unitPrice, totalCost: total, packageCount: 1, base: pack.base, packageSize: pack.qty, required: reqConv.value || 0, leftover: Math.max(0, pack.qty - (reqConv.value || 0)), adjusted }
   }
 }
 
