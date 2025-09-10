@@ -71,6 +71,7 @@ interface RecipeExpandableCardProps {
   replacingIndex?: number | null;
   savedIndices?: Set<number>;
   onSaveRecipe?: (index: number, recipe: Recipe) => void;
+  onIngredientUnitUpdate?: (recipeId: string, ingredientId: string, unit: string) => void;
 }
 
 export default function RecipeExpandableCard({ 
@@ -81,6 +82,7 @@ export default function RecipeExpandableCard({
   replacingIndex,
   onSaveRecipe,
   savedIndices,
+  onIngredientUnitUpdate,
 }: RecipeExpandableCardProps) {
   const [active, setActive] = useState<Recipe | null>(null)
   const ref = useRef<HTMLDivElement>(null)
@@ -265,6 +267,19 @@ export default function RecipeExpandableCard({
                                 >
                                   🔍 Find alternatives
                                 </button>
+                                {!ingredient.unit && (
+                                  <div className="flex items-center gap-2 text-xs">
+                                    <span className="text-gray-600">Set unit:</span>
+                                    {['tsp','tbsp','cup','oz','g','ml','each'].map(u => (
+                                      <button
+                                        key={u}
+                                        onClick={() => onIngredientUnitUpdate && onIngredientUnitUpdate(active.id, ingredient.id, u)}
+                                        className="px-2 py-1 bg-gray-100 hover:bg-gray-200 rounded-full text-gray-700"
+                                        title="Set unit"
+                                      >{u}</button>
+                                    ))}
+                                  </div>
+                                )}
                                 
                                 {ingredient.userStatus !== 'already-have' && (
                                   <button
@@ -307,6 +322,9 @@ export default function RecipeExpandableCard({
                                 }`}>
                                   ${ingredient.krogerPrice.totalCost.toFixed(2)}
                                 </span>
+                                {ingredient.krogerPrice && (ingredient.krogerPrice as any).adjusted && (
+                                  <div className="text-[11px] text-orange-700 bg-orange-100 inline-block px-2 py-0.5 rounded ml-1" title="Estimated using typical package size">Estimated</div>
+                                )}
                                 {ingredient.krogerPrice.unitPrice && ( 
                                   <div className="text-xs text-gray-500">${ingredient.krogerPrice.unitPrice.toFixed(2)} per {ingredient.krogerPrice.baseUnit || 'unit'}</div>
                                 )}

@@ -762,6 +762,42 @@ export default function MealPlannerV2() {
     }));
   };
 
+  // Update ingredient unit quickly and reprice if possible
+  const updateIngredientUnit = (recipeId: string, ingredientId: string, newUnit: string) => {
+    setRecipes(prev => prev.map(recipe => {
+      if (recipe.id !== recipeId) return recipe
+      const updated = {
+        ...recipe,
+        ingredients: recipe.ingredients.map(ing => {
+          if (ing.id !== ingredientId) return ing
+          const next = { ...ing, unit: newUnit }
+          // If we have an attached product, recompute pricing
+          if (ing.krogerPrice && (ing.krogerPrice.size || ing.krogerPrice.unitPrice)) {
+            const productPrice = ing.krogerPrice.salePrice ?? (ing.krogerPrice.unitPrice && ing.krogerPrice.packageSize ? ing.krogerPrice.unitPrice * ing.krogerPrice.packageSize : (ing.krogerPrice.totalCost / Math.max(1, ing.krogerPrice.packageCount || 1)))
+            const comp = computeIngredientCost({ amount: next.amount, unit: next.unit }, { price: productPrice || 0, size: ing.krogerPrice.size || '' }, true)
+            if (comp) {
+              next.krogerPrice = {
+                ...ing.krogerPrice,
+                unitPrice: comp.unitPrice,
+                totalCost: comp.totalCost,
+                packageCount: comp.packageCount,
+                baseUnit: comp.base,
+                packageSize: comp.packageSize,
+                requiredAmount: comp.required,
+                leftoverAmount: comp.leftover,
+                // keep onSale/salePrice/brand/productName/size
+                adjusted: comp.adjusted,
+              } as any
+            }
+          }
+          return next
+        })
+      }
+      // Recalc if priced
+      return updated.hasPricing ? recalculateRecipePricing(updated) : updated
+    }))
+  }
+
   // Recalculate recipe pricing based on ingredient statuses
   const recalculateRecipePricing = (recipe: Recipe): Recipe => {
     if (!recipe.hasPricing || !recipe.pricing) return recipe;
@@ -1191,6 +1227,7 @@ export default function MealPlannerV2() {
               replacingIndex={replacingIndex}
               onSaveRecipe={(i) => saveRecipeAt(i)}
               savedIndices={savedIndices}
+              onIngredientUnitUpdate={updateIngredientUnit}
             />
           </div>
 
