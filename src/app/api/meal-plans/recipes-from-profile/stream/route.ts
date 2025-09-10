@@ -20,6 +20,39 @@ function extractUnitFromName(name: string): { cleaned: string; unit?: string } {
   return { cleaned: name, unit: undefined }
 }
 
+function normalizeVulgarFractions(s: string): string {
+  return s
+    .replace(/¼/g, '1/4')
+    .replace(/½/g, '1/2')
+    .replace(/¾/g, '3/4')
+    .replace(/⅐/g, '1/7')
+    .replace(/⅑/g, '1/9')
+    .replace(/⅒/g, '1/10')
+    .replace(/⅓/g, '1/3')
+    .replace(/⅔/g, '2/3')
+    .replace(/⅕/g, '1/5')
+    .replace(/⅖/g, '2/5')
+    .replace(/⅗/g, '3/5')
+    .replace(/⅘/g, '4/5')
+    .replace(/⅙/g, '1/6')
+    .replace(/⅚/g, '5/6')
+    .replace(/⅛/g, '1/8')
+    .replace(/⅜/g, '3/8')
+    .replace(/⅝/g, '5/8')
+    .replace(/⅞/g, '7/8')
+}
+
+function extractAmountFromName(name: string): { cleaned: string; amount?: string } {
+  const src = normalizeVulgarFractions(name).trim()
+  const m = src.match(/^\s*(\d+\s+\d+\/\d+|\d+\/\d+|\d+(?:\.\d+)?)/)
+  if (m) {
+    const amt = m[1]?.trim()
+    const cleaned = src.slice(m[0].length).trim()
+    return { cleaned: cleaned || name, amount: amt }
+  }
+  return { cleaned: name }
+}
+
 export async function GET(request: NextRequest) {
   const supabase = createRouteHandlerClient<Database>({ cookies })
 
@@ -114,13 +147,16 @@ export async function GET(request: NextRequest) {
             culturalOrigin: [recipe.cuisine || primaryCuisine],
             cuisine: recipe.cuisine || primaryCuisine,
             ingredients: (recipe.ingredients || []).map((ing: any, ingIndex: number) => {
-              const rawName = String(ing.item || ing.name || '')
+              const rawNameInput = String(ing.item || ing.name || '')
+              const amtFromStruct = String(ing.quantity ?? ing.amount ?? '').trim()
+              const amtProbe = !amtFromStruct ? extractAmountFromName(rawNameInput) : { cleaned: rawNameInput, amount: amtFromStruct }
+              const rawName = amtProbe.cleaned
               const baseUnit = String(ing.unit || '').trim()
               const parsed = !baseUnit ? extractUnitFromName(rawName) : { cleaned: rawName, unit: baseUnit }
               return {
                 id: `ingredient-${ingIndex}`,
                 name: parsed.cleaned,
-                amount: String(ing.quantity ?? ing.amount ?? ''),
+                amount: amtProbe.amount || '',
                 unit: parsed.unit || baseUnit || '',
                 originalName: rawName,
                 isSubstituted: false,
