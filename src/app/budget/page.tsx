@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useProfileSetup } from '@/hooks/useProfileSetup';
 import Link from 'next/link';
+import { DashboardLayout } from '@/components/layout/AppLayout';
 
 type LastTotal = { totalCost: number; estimatedItems: number; mode: 'package'|'proportional'; ts: number }
 
@@ -22,7 +23,8 @@ export default function BudgetPage() {
   const lastUpdated = last?.ts ? new Date(last.ts).toLocaleString() : '—'
 
   return (
-    <div className="max-w-4xl mx-auto p-6 space-y-6">
+    <DashboardLayout>
+      <div className="max-w-4xl mx-auto p-6 space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-gray-900">Budget Overview</h1>
         <Link href="/meal-plans" className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">Go to Meal Plans</Link>
@@ -81,7 +83,7 @@ export default function BudgetPage() {
           <li>Auto‑optimize plan to meet budget</li>
         </ul>
       </div>
-    </div>
+      </div>
+    </DashboardLayout>
   )
 }
-
