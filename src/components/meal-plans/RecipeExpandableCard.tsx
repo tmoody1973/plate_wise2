@@ -336,6 +336,13 @@ export default function RecipeExpandableCard({
                                     ) : null}
                                   </div>
                                 )}
+                                {/* Explain price tooltip */}
+                                <div className="text-[11px] text-gray-500 mt-0.5">
+                                  <span
+                                    className="underline decoration-dotted cursor-help"
+                                    title={`Required: ${Math.round((ingredient.krogerPrice as any).requiredAmount || 0)} ${(ingredient.krogerPrice as any).baseUnit || ''}; Package: ${Math.round((ingredient.krogerPrice as any).packageSize || 0)} ${(ingredient.krogerPrice as any).baseUnit || ''}; Packages: ${(ingredient.krogerPrice as any).packageCount || 1}; Per-${(ingredient.krogerPrice as any).baseUnit || 'unit'}: $${(ingredient.krogerPrice.unitPrice || 0).toFixed(2)}; Total: $${(ingredient.krogerPrice.totalCost || 0).toFixed(2)}${(ingredient.krogerPrice as any).adjusted ? ' (estimated size)' : ''}`}
+                                  >ⓘ Explain price</span>
+                                </div>
                                 {ingredient.krogerPrice.onSale && (
                                   <div className="text-sm text-red-600 font-medium">ON SALE!</div>
                                 )}
