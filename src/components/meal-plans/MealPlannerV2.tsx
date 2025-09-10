@@ -188,6 +188,7 @@ export default function MealPlannerV2() {
     country: '',
     mealCount: 7,
     mealTypes: ['dinner'] as Array<'breakfast'|'lunch'|'dinner'>,
+    costMode: 'package' as 'package' | 'proportional',
     householdSize: 4,
     availableTime: 'standard',
     weeklyBudget: 75,
@@ -391,7 +392,7 @@ export default function MealPlannerV2() {
       const response = await fetch('/api/meal-plans/add-pricing', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ recipes, zipCode })
+        body: JSON.stringify({ recipes, zipCode, mode: config.costMode })
       });
       
       // Check if response is ok
@@ -687,7 +688,11 @@ export default function MealPlannerV2() {
           ingredients: recipe.ingredients.map(ing => {
             if (ing.id === searchingIngredient.ingredientId) {
               // Compute smarter per-unit cost
-              const comp = computeIngredientCost({ amount: ing.amount, unit: ing.unit }, { price: searchResult.onSale && searchResult.salePrice ? searchResult.salePrice : searchResult.price, size: searchResult.size }, true)
+              const comp = computeIngredientCost(
+                { amount: ing.amount, unit: ing.unit },
+                { price: searchResult.onSale && searchResult.salePrice ? searchResult.salePrice : searchResult.price, size: searchResult.size },
+                config.costMode !== 'proportional'
+              )
               return {
                 ...ing,
                 name: searchResult.cleanName,
@@ -774,7 +779,11 @@ export default function MealPlannerV2() {
           // If we have an attached product, recompute pricing
           if (ing.krogerPrice && (ing.krogerPrice.size || ing.krogerPrice.unitPrice)) {
             const productPrice = ing.krogerPrice.salePrice ?? (ing.krogerPrice.unitPrice && ing.krogerPrice.packageSize ? ing.krogerPrice.unitPrice * ing.krogerPrice.packageSize : (ing.krogerPrice.totalCost / Math.max(1, ing.krogerPrice.packageCount || 1)))
-            const comp = computeIngredientCost({ amount: next.amount, unit: next.unit }, { price: productPrice || 0, size: ing.krogerPrice.size || '' }, true)
+            const comp = computeIngredientCost(
+              { amount: next.amount, unit: next.unit },
+              { price: productPrice || 0, size: ing.krogerPrice.size || '' },
+              config.costMode !== 'proportional'
+            )
             if (comp) {
               next.krogerPrice = {
                 ...ing.krogerPrice,
@@ -1065,6 +1074,18 @@ export default function MealPlannerV2() {
                     className="w-full p-2 border border-gray-300 rounded-md"
                   />
                 </div>
+              </div>
+
+              <label className="block text-sm font-medium mb-2">Costing Mode</label>
+              <div className="flex items-center gap-3 mb-4 text-sm">
+                <label className="flex items-center gap-2">
+                  <input type="radio" name="costmode" checked={config.costMode === 'package'} onChange={() => setConfig(prev => ({ ...prev, costMode: 'package' }))} />
+                  <span>Package (buy whole package)</span>
+                </label>
+                <label className="flex items-center gap-2">
+                  <input type="radio" name="costmode" checked={config.costMode === 'proportional'} onChange={() => setConfig(prev => ({ ...prev, costMode: 'proportional' }))} />
+                  <span>Proportional (per‑unit)</span>
+                </label>
               </div>
               <div className="mt-4">
                 <label className="block text-sm font-medium mb-2">Religious Restrictions (CSV)</label>

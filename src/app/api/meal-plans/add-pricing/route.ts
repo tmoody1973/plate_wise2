@@ -78,7 +78,8 @@ function isFreeWater(name: string): boolean {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { recipes, zipCode = '90210' } = body;
+    const { recipes, zipCode = '90210', mode = 'package' } = body;
+    const byPackage = mode !== 'proportional'
 
     if (!recipes || !Array.isArray(recipes)) {
       return NextResponse.json({
@@ -114,7 +115,7 @@ export async function POST(request: NextRequest) {
 
           if (pricing?.bestMatch) {
             const price = pricing.bestMatch.price.sale || pricing.bestMatch.price.promo || pricing.bestMatch.price.regular
-            const comp = computeIngredientCost({ amount: ingredient.amount, unit: ingredient.unit }, { price, size: pricing.bestMatch.size }, true)
+            const comp = computeIngredientCost({ amount: ingredient.amount, unit: ingredient.unit }, { price, size: pricing.bestMatch.size }, byPackage)
             const itemCost = comp ? comp.totalCost : 0
             
             totalCost += itemCost;
