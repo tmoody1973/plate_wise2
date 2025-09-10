@@ -277,6 +277,28 @@ function isValidUrl(value: string): boolean {
   }
 }
 
+function isRoundupOrListicle(url: string, title?: string): boolean {
+  try {
+    const u = new URL(url)
+    const path = u.pathname.toLowerCase()
+    const host = u.hostname.replace(/^www\./, '')
+    const t = (title || '').toLowerCase()
+    if (/\b(\d+\s+)?(best|top|easy)\b.*\brecipes\b/.test(t)) return true
+    if (/\b(ideas|roundup|collection|collections)\b/.test(t)) return true
+    if (/(^|\/)(gallery|collections?|roundup|list|slides?)/.test(path)) return true
+    if (host.includes('delish.com') && /\/gallery\//.test(path)) return true
+    if (host.includes('bonappetit.com') && /\/recipes\/collections?\//.test(path)) return true
+    if (host.includes('epicurious.com') && /\/collections?\//.test(path)) return true
+    if (host.includes('tasteofhome.com') && /\/collection\//.test(path)) return true
+    if (host.includes('allrecipes.com')) {
+      if (/\/recipes\//.test(path) && !/\/recipe\//.test(path)) return true
+    }
+    return false
+  } catch {
+    return false
+  }
+}
+
 function wrapToResponse(raw: any, filters: RecipeSearchFilters): any {
   // If model returned a bare array, wrap it into the expected shape
   if (Array.isArray(raw)) {
@@ -463,6 +485,10 @@ function scrubStructuredOutput(raw: any, webMode: boolean): any {
               const slug = typeof r.title === 'string' ? r.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') : 'ai-generated'
               r.source = `https://platewise.app/ai/${slug}`
             }
+          }
+          // Drop roundup/listicle URLs in web mode – keep only single-recipe pages
+          if (webMode && isRoundupOrListicle(r.source, r.title)) {
+            return null
           }
         } else {
           if (webMode) {
@@ -755,7 +781,10 @@ async function enrichMissingImagesWithTavily(recipes: Pick<RecipeT, 'source' | '
 
 async function hydrateFromSources(result: RecipesResponseT, filters: RecipeSearchFilters): Promise<RecipesResponseT | null> {
   try {
-    const sources = (result.meta?.sources || []).map(s => s.url).filter(Boolean)
+    const sources = (result.meta?.sources || [])
+      .map(s => s.url)
+      .filter(Boolean)
+      .filter((u) => !isRoundupOrListicle(u))
     if (!sources.length) return null
     const max = Math.min(10, Math.max(1, filters.maxResults ?? 5))
     const picked = sources.slice(0, max)
