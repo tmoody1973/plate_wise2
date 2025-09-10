@@ -1222,6 +1222,28 @@ export default function MealPlannerV2() {
                     {isStreaming && streamProgress && (
                       <span className="text-blue-600">Streaming {streamProgress.index}/{streamProgress.total}</span>
                     )}
+                    {step === 'pricing' && (
+                      (() => {
+                        const totals = (() => {
+                          let plan = 0; let ingr = 0; let est = 0; let all = 0
+                          for (const r of recipes) {
+                            plan += r.pricing?.totalCost || 0
+                            for (const ing of r.ingredients) {
+                              if ((ing.krogerPrice as any)?.adjusted) est++
+                              if (ing.krogerPrice && typeof ing.krogerPrice.totalCost === 'number') ingr += ing.krogerPrice.totalCost
+                              all++
+                            }
+                          }
+                          return { plan, ingr, est, all }
+                        })()
+                        const text = `Total: $${totals.plan.toFixed(2)}\nCosting mode: ${config.costMode}\nEstimated items: ${totals.est}\nPriced ingredients (sum): $${totals.ingr.toFixed(2)}\nWater/ice excluded from pricing.`
+                        return (
+                          <span className="text-sm text-gray-600">
+                            <span className="underline decoration-dotted cursor-help" title={text}>Explain total</span>
+                          </span>
+                        )
+                      })()
+                    )}
                   </div>
                   {config.costMode === 'proportional' && (
                     <div className="mt-2 text-sm text-gray-600 bg-gray-100 inline-block px-3 py-1 rounded">
