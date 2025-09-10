@@ -229,7 +229,7 @@ export default function MealPlannerV2() {
     savingsPerUnit: number;
   }>>([])
   const [showTotalsExplainer, setShowTotalsExplainer] = useState(false)
-  const [totalsExplainerData, setTotalsExplainerData] = useState<{ planTotal: number; mode: string; estimatedCount: number; ingredientSum: number; top: Array<{ recipeId: string; ingredientId: string; name: string; total: number }> }>({ planTotal: 0, mode: '', estimatedCount: 0, ingredientSum: 0, top: [] })
+  const [totalsExplainerData, setTotalsExplainerData] = useState<{ planTotal: number; mode: string; estimatedCount: number; ingredientSum: number; top: Array<{ recipeId: string; ingredientId: string; name: string; total: number; currentUnitPrice?: number; suggestionUnitPrice?: number; savingsPerUnit?: number }> }>({ planTotal: 0, mode: '', estimatedCount: 0, ingredientSum: 0, top: [] })
 
   useEffect(() => {
     setMounted(true);
@@ -1230,21 +1230,49 @@ export default function MealPlannerV2() {
                         onClick={() => {
                           // compute data for explainer
                           let plan = 0; let ingr = 0; let est = 0
-                          const list: Array<{ recipeId: string; ingredientId: string; name: string; total: number }> = []
+                          const list: Array<{ recipeId: string; ingredientId: string; name: string; total: number; currentUnitPrice?: number }> = []
                           for (const r of recipes) {
                             plan += r.pricing?.totalCost || 0
                             for (const ing of r.ingredients) {
                               if ((ing as any).krogerPrice?.totalCost) {
                                 const t = (ing as any).krogerPrice.totalCost as number
                                 ingr += t
-                                list.push({ recipeId: r.id, ingredientId: ing.id, name: ing.name, total: t })
+                                list.push({ recipeId: r.id, ingredientId: ing.id, name: ing.name, total: t, currentUnitPrice: (ing as any).krogerPrice?.unitPrice })
                               }
                               if ((ing as any).krogerPrice?.adjusted) est++
                             }
                           }
                           list.sort((a,b) => b.total - a.total)
-                          setTotalsExplainerData({ planTotal: plan, mode: config.costMode, estimatedCount: est, ingredientSum: ingr, top: list.slice(0,3) })
+                          const top = list.slice(0,3)
+                          setTotalsExplainerData({ planTotal: plan, mode: config.costMode, estimatedCount: est, ingredientSum: ingr, top: top as any })
                           setShowTotalsExplainer(true)
+                          // Asynchronously fetch cheapest per-unit for each top item to compute savings badge
+                          ;(async () => {
+                            try {
+                              const updated = [...top]
+                              for (let i = 0; i < updated.length; i++) {
+                                const it = updated[i]
+                                const resp = await fetch(`/api/ingredients/search?q=${encodeURIComponent(it.name)}&zipCode=${zipCode}&limit=6`)
+                                const j = await resp.json().catch(() => null)
+                                const results: SearchResult[] = j?.results || []
+                                let bestUnit = Infinity
+                                for (const res of results) {
+                                  const pack = parseSizeToBase(res.size)
+                                  if (!pack) continue
+                                  const price = res.onSale && res.salePrice ? res.salePrice : res.price
+                                  const unit = price / (pack.qty || 1)
+                                  if (unit < bestUnit) bestUnit = unit
+                                }
+                                if (isFinite(bestUnit) && it.currentUnitPrice && bestUnit < it.currentUnitPrice) {
+                                  // update state with savings per unit
+                                  setTotalsExplainerData(prev => {
+                                    const next = { ...prev, top: prev.top.map((t, idx) => idx === i ? { ...t, suggestionUnitPrice: bestUnit, savingsPerUnit: (t.currentUnitPrice || 0) - bestUnit } : t) }
+                                    return next
+                                  })
+                                }
+                              }
+                            } catch {}
+                          })()
                         }}
                       >Explain total</button>
                     )}
@@ -1439,7 +1467,12 @@ export default function MealPlannerV2() {
                 <ul className="space-y-2">
                   {totalsExplainerData.top.map((it, idx) => (
                     <li key={idx} className="flex items-center justify-between text-sm">
-                      <span className="truncate mr-2">{it.name}</span>
+                      <span className="truncate mr-2">
+                        {it.name}
+                        {typeof it.savingsPerUnit === 'number' && it.savingsPerUnit > 0 && (
+                          <span className="ml-2 text-green-700 bg-green-100 px-2 py-0.5 rounded text-[11px]">Save ~${it.savingsPerUnit.toFixed(2)}/unit</span>
+                        )}
+                      </span>
                       <div className="flex items-center gap-2">
                         <span className="text-gray-700">${it.total.toFixed(2)}</span>
                         <button
