@@ -218,6 +218,16 @@ export default function MealPlannerV2() {
   const [savingIndex, setSavingIndex] = useState<number | null>(null);
   const [savedIndices, setSavedIndices] = useState<Set<number>>(new Set());
   const [advancedOpen, setAdvancedOpen] = useState<boolean>(false);
+  const [cheaperLoading, setCheaperLoading] = useState(false)
+  const [cheaperSuggestions, setCheaperSuggestions] = useState<Array<{
+    recipeId: string;
+    ingredientId: string;
+    ingredientName: string;
+    currentUnitPrice: number;
+    suggestion: SearchResult;
+    suggestionUnitPrice: number;
+    savingsPerUnit: number;
+  }>>([])
 
   useEffect(() => {
     setMounted(true);
@@ -1213,6 +1223,11 @@ export default function MealPlannerV2() {
                       <span className="text-blue-600">Streaming {streamProgress.index}/{streamProgress.total}</span>
                     )}
                   </div>
+                  {config.costMode === 'proportional' && (
+                    <div className="mt-2 text-sm text-gray-600 bg-gray-100 inline-block px-3 py-1 rounded">
+                      Costing mode: Proportional (estimates shared pantry usage). Switch to Package to reflect full package purchases.
+                    </div>
+                  )}
                 </div>
                 
                 {step === 'pricing' && recipes.some(r => r.hasPricing) && (
@@ -1289,6 +1304,86 @@ export default function MealPlannerV2() {
                     ));
                   })()}
                 </div>
+              </div>
+              {/* Cheaper Swaps */}
+              <div className="bg-white rounded-lg border shadow-sm p-6">
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="text-lg font-semibold text-gray-900">Cheaper Swaps</h3>
+                  <button
+                    className="text-sm px-3 py-1 border rounded hover:bg-gray-50 disabled:opacity-50"
+                    disabled={cheaperLoading}
+                    onClick={async () => {
+                      try {
+                        setCheaperLoading(true)
+                        const suggestions: Array<any> = []
+                        // scan ingredients with pricing
+                        const flat: Array<{ r: Recipe; ing: any; rIdx: number; iIdx: number }> = []
+                        recipes.forEach((r, rIdx) => r.ingredients.forEach((ing, iIdx) => {
+                          if (ing.krogerPrice && ing.krogerPrice.unitPrice) flat.push({ r, ing, rIdx, iIdx })
+                        }))
+                        // sort by highest unit price first
+                        flat.sort((a,b) => (b.ing.krogerPrice.unitPrice||0) - (a.ing.krogerPrice.unitPrice||0))
+                        // check top 10 ingredients max, stop after 5 suggestions
+                        for (const item of flat.slice(0, 10)) {
+                          const q = encodeURIComponent(item.ing.name)
+                          const resp = await fetch(`/api/ingredients/search?q=${q}&zipCode=${zipCode}&limit=6`)
+                          const j = await resp.json()
+                          const list: SearchResult[] = j?.results || []
+                          let best: { res: SearchResult; unit: number } | null = null
+                          for (const res of list) {
+                            const pack = parseSizeToBase(res.size)
+                            if (!pack) continue
+                            const price = res.onSale && res.salePrice ? res.salePrice : res.price
+                            const unit = price / (pack.qty || 1)
+                            if (!best || unit < best.unit) best = { res, unit }
+                          }
+                          if (best && best.unit < (item.ing.krogerPrice.unitPrice || Infinity) * 0.9) {
+                            suggestions.push({
+                              recipeId: item.r.id,
+                              ingredientId: item.ing.id,
+                              ingredientName: item.ing.name,
+                              currentUnitPrice: item.ing.krogerPrice.unitPrice,
+                              suggestion: best.res,
+                              suggestionUnitPrice: best.unit,
+                              savingsPerUnit: (item.ing.krogerPrice.unitPrice || 0) - best.unit,
+                            })
+                            if (suggestions.length >= 5) break
+                          }
+                        }
+                        setCheaperSuggestions(suggestions)
+                      } catch (e) {
+                        console.error('cheaper swaps failed', e)
+                      } finally {
+                        setCheaperLoading(false)
+                      }
+                    }}
+                  >{cheaperLoading ? 'Scanning…' : 'Find Cheaper Swaps'}</button>
+                </div>
+                {cheaperSuggestions.length === 0 ? (
+                  <p className="text-sm text-gray-600">No suggestions yet. Click “Find Cheaper Swaps”.</p>
+                ) : (
+                  <div className="space-y-2">
+                    {cheaperSuggestions.map((sug, idx) => (
+                      <div key={idx} className="flex items-center justify-between text-sm">
+                        <div className="min-w-0">
+                          <div className="font-medium truncate">{sug.ingredientName}</div>
+                          <div className="text-gray-600">
+                            Now ${sug.currentUnitPrice.toFixed(2)} • Try {sug.suggestion.brand} {sug.suggestion.size} (${sug.suggestion.price.toFixed(2)}; {(sug.suggestionUnitPrice).toFixed(2)}/unit)
+                          </div>
+                        </div>
+                        <button
+                          className="ml-2 px-2 py-1 border rounded hover:bg-gray-50"
+                          onClick={() => {
+                            // Apply suggestion via substituteIngredient pathway
+                            setSearchingIngredient({ recipeId: sug.recipeId, ingredientId: sug.ingredientId, query: sug.ingredientName })
+                            substituteIngredient(sug.suggestion)
+                            setCheaperSuggestions(prev => prev.filter((_,i) => i !== idx))
+                          }}
+                        >Swap</button>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
           )}
