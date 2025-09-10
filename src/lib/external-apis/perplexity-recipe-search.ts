@@ -3,6 +3,8 @@
  * Unified recipe search using Perplexity API for better consistency with pricing
  */
 
+import { urlValidatorService } from '@/lib/utils/url-validator';
+
 export interface PerplexityRecipeSearchRequest {
   query: string;
   country?: string;
@@ -131,8 +133,8 @@ class PerplexityRecipeSearchService {
           max_tokens: 2000, // Reduced for faster response while maintaining detail
           temperature: 0.1, // Very low randomness for concise, consistent JSON
           return_citations: true,
-          stream: true, // Enable streaming for better UX and timeout prevention
-          // No domain filter - let Perplexity use its SEO ranking to find best results
+          search_context_size: "medium", // Balanced search depth
+          stream: true // Enable streaming for better UX and timeout prevention
         }),
         signal: controller.signal
       });
@@ -293,7 +295,8 @@ class PerplexityRecipeSearchService {
           max_tokens: 2000,
           temperature: 0.1,
           return_citations: true,
-          stream: true,
+          search_context_size: "medium", // Balanced search depth
+          stream: true
         }),
         signal: controller.signal
       });
@@ -881,7 +884,7 @@ IMPORTANT:
         };
       })(),
       metadata: {
-        sourceUrl: citationUrl || recipe.metadata?.sourceUrl || recipe.source || '',
+        sourceUrl: this.validateAndCleanSourceUrl(citationUrl || recipe.metadata?.sourceUrl || recipe.source || ''),
         imageUrl: recipe.metadata?.imageUrl || recipe.image || recipe.imageUrl || undefined,
         servings: typeof (recipe.metadata?.servings || recipe.servings) === 'number' 
           ? (recipe.metadata?.servings || recipe.servings) 
@@ -1028,6 +1031,26 @@ IMPORTANT:
     // Count recipe objects that appear to be complete or near-complete
     const titleMatches = content.match(/"title"\s*:\s*"[^"]*"/g);
     return titleMatches ? titleMatches.length : 0;
+  }
+
+  /**
+   * Validate and clean source URL, providing fallbacks for invalid URLs
+   */
+  private validateAndCleanSourceUrl(url: string): string {
+    if (!url || url.trim() === '') {
+      return '';
+    }
+
+    const validation = urlValidatorService.validateURL(url);
+    
+    if (validation.isValid && validation.sanitizedUrl) {
+      console.log(`✅ Valid source URL: ${validation.sanitizedUrl}`);
+      return validation.sanitizedUrl;
+    } else {
+      console.warn(`⚠️ Invalid source URL "${url}": ${validation.error}`);
+      // Return empty string instead of broken URL to prevent 404s
+      return '';
+    }
   }
 
   /**

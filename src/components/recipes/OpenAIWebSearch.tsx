@@ -51,9 +51,13 @@ export function OpenAIWebSearch({ className }: Props) {
   }, [query, country, include, exclude, max, mode, detailed])
 
   const handleSearch = async () => {
+    if (!query.trim()) {
+      addToast({ type: 'warning', title: 'Enter a search term', message: 'Please type a recipe name or keywords.' })
+      return
+    }
     setPreviousResults(null)
     try {
-      const res = await search.mutateAsync(filters)
+      const res = await search.mutateAsync({ ...filters, query: query.trim() })
       setPreviousResults(res.results)
       repairMissingInResults(res.results)
       const ids = (res.rows || []).map((r: any) => r.id).filter(Boolean)
@@ -72,7 +76,7 @@ export function OpenAIWebSearch({ className }: Props) {
   const handleMore = async () => {
     if (!previousResults) return
     try {
-      const res = await searchMore.mutateAsync({ previous: previousResults, ...filters })
+      const res = await searchMore.mutateAsync({ previous: previousResults, ...filters, query: query.trim() || undefined })
       setPreviousResults(res.results)
       repairMissingInResults(res.results)
       const ids = (res.rows || []).map((r: any) => r.id).filter(Boolean)

@@ -104,6 +104,7 @@ class PerplexityPricingService {
           max_tokens: 2000,
           temperature: 0.1,
           return_citations: true,
+          search_context_size: "medium", // Balanced search depth
           search_domain_filter: ['walmart.com', 'target.com', 'kroger.com', 'safeway.com', 'instacart.com']
         })
       });
@@ -302,6 +303,7 @@ REQUIREMENTS:
           max_tokens: 3000,
           temperature: 0.1,
           return_citations: true,
+          search_context_size: "medium", // Balanced search depth
           search_domain_filter: ['walmart.com', 'target.com', 'kroger.com', 'safeway.com', 'instacart.com', 'yelp.com']
         })
       });

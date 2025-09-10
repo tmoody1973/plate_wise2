@@ -33,3 +33,6 @@ export function useAuthContext(): UseAuthReturn {
   
   return context;
 }
+
+// Export useAuth from the hook for direct access
+export { useAuth } from '@/hooks/useAuth';

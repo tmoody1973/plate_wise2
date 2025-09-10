@@ -1,176 +1,106 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server';
+import { KrogerPricingService } from '@/lib/integrations/kroger-pricing';
 
-export async function POST(request: NextRequest) {
+export async function GET(request: NextRequest) {
   try {
-    const body = await request.json()
-    
-    const {
-      ingredient,
-      store,
-      location = '30309',
-      searchType = 'alternatives' // 'alternatives', 'substitutes', 'availability'
-    } = body
+    const { searchParams } = new URL(request.url);
+    const query = searchParams.get('q') || '';
+    const zipCode = searchParams.get('zipCode') || '90210';
+    const limit = parseInt(searchParams.get('limit') || '10');
 
-    console.log(`🔍 Ingredient search request:`, {
-      ingredient,
-      store,
-      location,
-      searchType
-    })
-
-    if (!ingredient || typeof ingredient !== 'string') {
+    if (!query.trim()) {
       return NextResponse.json({
-        error: 'Invalid ingredient provided',
-        details: 'Ingredient must be a non-empty string'
-      }, { status: 400 })
+        success: false,
+        error: 'Search query is required'
+      }, { status: 400 });
     }
 
-    // Validate Perplexity API key
-    const perplexityApiKey = process.env.PERPLEXITY_API_KEY
-    if (!perplexityApiKey) {
-      console.error('❌ Perplexity API key not configured')
-      return NextResponse.json({
-        error: 'Ingredient search service not available',
-        details: 'API configuration missing'
-      }, { status: 500 })
-    }
+    console.log(`🔍 Searching Kroger for: "${query}" in ${zipCode}`);
 
-    console.log(`🔑 Perplexity API Key status:`, {
-      hasKey: !!perplexityApiKey,
-      keyLength: perplexityApiKey?.length,
-      keyPrefix: perplexityApiKey?.substring(0, 8) + '...'
-    })
-
-    // Build search prompt based on search type
-    let searchPrompt = ''
+    const krogerService = new KrogerPricingService();
     
-    switch (searchType) {
-      case 'alternatives':
-        searchPrompt = store 
-          ? `Find ingredient alternatives for "${ingredient}" available at ${store} in Atlanta, Georgia (${location}). Include pricing, package sizes, and product names. If ${store} doesn't carry good alternatives, suggest other Atlanta stores that do.`
-          : `Find ingredient alternatives and substitutes for "${ingredient}" available at Atlanta stores (zip code ${location}). Include store names, pricing, package sizes, and product names for each alternative.`
-        break
-        
-      case 'substitutes':
-        searchPrompt = `What are good cooking substitutes for "${ingredient}"? Include ratios and any preparation differences. Then find these substitutes at Atlanta grocery stores (${location}) with current pricing.`
-        break
-        
-      case 'availability':
-        searchPrompt = store
-          ? `Check if ${store} in Atlanta (${location}) carries "${ingredient}". If yes, provide current pricing and product details. If no, suggest the closest Atlanta stores that do carry it.`
-          : `Find which Atlanta grocery stores (${location}) carry "${ingredient}" and provide current pricing, package sizes, and store addresses.`
-        break
-        
-      default:
-        searchPrompt = `Find alternatives and pricing for "${ingredient}" at Atlanta grocery stores (${location}).`
-    }
-
-    console.log(`📝 Search prompt:`, searchPrompt.substring(0, 200) + '...')
-
-    // Make Perplexity API request
-    const perplexityResponse = await fetch('https://api.perplexity.ai/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${perplexityApiKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: 'sonar',
-        messages: [
-          {
-            role: 'system',
-            content: 'You are a grocery shopping expert. Provide accurate, current pricing information for ingredients and alternatives. Always include store names, product names, package sizes, prices, and store addresses when available. Format responses as structured data when possible.'
-          },
-          {
-            role: 'user',
-            content: searchPrompt
-          }
-        ],
-        temperature: 0.1,
-        max_tokens: 2000
-      })
-    })
-
-    if (!perplexityResponse.ok) {
-      const errorText = await perplexityResponse.text()
-      console.error('❌ Perplexity API error:', perplexityResponse.status, errorText)
-      return NextResponse.json({
-        error: 'Ingredient search failed',
-        details: `API returned ${perplexityResponse.status}`
-      }, { status: 500 })
-    }
-
-    const perplexityData = await perplexityResponse.json()
-    console.log(`✅ Perplexity API response received, length:`, perplexityData.choices?.[0]?.message?.content?.length || 0)
+    // Get ingredient pricing which includes alternatives
+    const result = await krogerService.getIngredientPrice(query, zipCode);
     
-    const searchResults = perplexityData.choices?.[0]?.message?.content || ''
+    if (!result.bestMatch) {
+      return NextResponse.json({
+        success: false,
+        error: 'No products found',
+        timestamp: new Date().toISOString()
+      });
+    }
 
-    // Try to extract structured data if possible
-    let structuredResults = null
-    try {
-      // Look for JSON-like structures in the response
-      const jsonMatch = searchResults.match(/\[[\s\S]*\]/)
-      if (jsonMatch) {
-        structuredResults = JSON.parse(jsonMatch[0])
-        console.log(`📊 Extracted structured results:`, structuredResults.length, 'items')
+    // Format results for ingredient substitution
+    const searchResults = [];
+    
+    // Add best match first
+    if (result.bestMatch) {
+      searchResults.push({
+        id: result.bestMatch.productId,
+        name: result.bestMatch.name,
+        cleanName: result.bestMatch.name.replace(/®|™|©/g, '').trim(),
+        price: result.bestMatch.price.regular,
+        salePrice: result.bestMatch.price.sale || result.bestMatch.price.promo,
+        onSale: !!(result.bestMatch.price.sale || result.bestMatch.price.promo),
+        size: result.bestMatch.size,
+        brand: result.bestMatch.brand,
+        confidence: result.confidence,
+        availability: result.bestMatch.availability,
+        storeLocation: result.location?.name,
+        isBestMatch: true
+      });
+    }
+    
+    // Add alternatives
+    if (result.alternatives) {
+      for (const alt of result.alternatives.slice(0, limit - 1)) {
+        searchResults.push({
+          id: alt.productId,
+          name: alt.name,
+          cleanName: alt.name.replace(/®|™|©/g, '').trim(),
+          price: alt.price.regular,
+          salePrice: alt.price.sale || alt.price.promo,
+          onSale: !!(alt.price.sale || alt.price.promo),
+          size: alt.size,
+          brand: alt.brand,
+          confidence: 'medium',
+          availability: alt.availability,
+          storeLocation: result.location?.name,
+          isBestMatch: false
+        });
       }
-    } catch (e) {
-      console.log(`📝 Response is unstructured text, keeping as-is`)
     }
+
+    // Sort by relevance (best match first, then by price)
+    searchResults.sort((a, b) => {
+      if (a.isBestMatch && !b.isBestMatch) return -1;
+      if (!a.isBestMatch && b.isBestMatch) return 1;
+      return a.price - b.price;
+    });
 
     return NextResponse.json({
       success: true,
-      query: {
-        ingredient,
-        store,
-        location,
-        searchType
+      query,
+      zipCode,
+      results: searchResults.slice(0, limit),
+      summary: {
+        totalResults: searchResults.length,
+        storeLocation: result.location?.name,
+        averagePrice: searchResults.length > 0 
+          ? searchResults.reduce((sum, item) => sum + item.price, 0) / searchResults.length 
+          : 0,
+        onSaleCount: searchResults.filter(item => item.onSale).length
       },
-      results: {
-        structured: structuredResults,
-        text: searchResults,
-        hasStructuredData: !!structuredResults
-      },
-      metadata: {
-        timestamp: new Date().toISOString(),
-        source: 'perplexity-ai',
-        prompt: searchPrompt
-      }
-    })
+      timestamp: new Date().toISOString()
+    });
 
   } catch (error) {
-    console.error('❌ Ingredient search error:', error)
+    console.error('Ingredient search failed:', error);
     
     return NextResponse.json({
-      error: 'Failed to search for ingredient',
-      details: error instanceof Error ? error.message : 'Unknown error',
+      success: false,
+      error: error instanceof Error ? error.message : 'Search failed',
       timestamp: new Date().toISOString()
-    }, { status: 500 })
+    }, { status: 500 });
   }
-}
-
-export async function GET(request: NextRequest) {
-  const searchParams = request.nextUrl.searchParams
-  const ingredient = searchParams.get('ingredient')
-  const store = searchParams.get('store')
-  const location = searchParams.get('location') || '53206'
-  
-  if (!ingredient) {
-    return NextResponse.json({
-      error: 'Missing ingredient parameter',
-      usage: 'GET /api/ingredients/search?ingredient=flour&store=Pick n Save&location=53206'
-    }, { status: 400 })
-  }
-  
-  // Convert GET to POST request
-  return POST(new NextRequest(request.url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      ingredient,
-      store,
-      location,
-      searchType: 'alternatives'
-    })
-  }))
 }

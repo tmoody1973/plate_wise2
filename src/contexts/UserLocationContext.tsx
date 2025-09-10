@@ -1,8 +1,8 @@
 'use client';
 
 import { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import { createClient } from '@/lib/supabase/client';
-import { useAuthContext } from '@/contexts/AuthContext';
+import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface UserLocation {
   city: string;
@@ -42,7 +42,7 @@ interface UserLocationProviderProps {
 }
 
 export function UserLocationProvider({ children }: UserLocationProviderProps) {
-  const { user } = useAuthContext();
+  const { user } = useAuth();
   const [location, setLocation] = useState<UserLocation>({
     city: 'Atlanta',
     state: 'GA',
@@ -117,7 +117,7 @@ export function UserLocationProvider({ children }: UserLocationProviderProps) {
       }
 
       try {
-        const supabase = createClient();
+        const supabase = createClientComponentClient();
         const { data: profile, error } = await supabase
           .from('user_profiles')
           .select('location, preferences')

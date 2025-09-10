@@ -1,0 +1,40 @@
+{
+  "name": "Meal Plan Generator",
+  "description": "Automatically generates meal plans when plan-request.json is saved",
+  "trigger": {
+    "type": "file_save",
+    "patterns": ["data/plan-request.json"]
+  },
+  "debounce": 2000,
+  "actions": [
+    {
+      "type": "shell_command",
+      "command": "npm run plan:dev",
+      "workingDirectory": ".",
+      "environment": {
+        "PERPLEXITY_API_KEY": "${env.PERPLEXITY_API_KEY}",
+        "WEBSCRAPING_AI_API_KEY": "${env.WEBSCRAPING_AI_API_KEY}"
+      },
+      "timeout": 60000,
+      "onSuccess": [
+        {
+          "type": "shell_command",
+          "command": "node show-meal-plan-diff.js",
+          "workingDirectory": "."
+        },
+        {
+          "type": "open_file",
+          "path": "data/plan.json"
+        }
+      ],
+      "onError": [
+        {
+          "type": "show_error",
+          "message": "Meal plan generation failed. Check the error output below:"
+        }
+      ]
+    }
+  ],
+  "concurrent": false,
+  "queue": true
+}

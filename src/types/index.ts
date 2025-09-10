@@ -73,6 +73,39 @@ export interface Recipe {
   updatedAt: Date;
 }
 
+// Enhanced recipe interface for production-ready Perplexity integration
+export interface EnhancedRecipe {
+  title: string;
+  description: string;
+  cuisine: string;
+  culturalOrigin: string[];
+  sourceUrl: string;                // Canonical URL from rel="canonical" or final resolved URL
+  imageUrl: string;                 // Open Graph image (og:image) with absolute HTTPS URL
+  totalTimeMinutes: number;
+  servings: number;                 // Numeric servings derived from recipe yield
+  yieldText: string;                // Human-readable yield text from source
+  ingredients: EnhancedIngredient[];
+  instructions: EnhancedInstruction[];
+  nutritionalInfo: EnhancedNutritionalInfo;
+  tags?: string[];
+}
+
+// Enhanced ingredient interface with synonyms for accessibility
+export interface EnhancedIngredient {
+  name: string;
+  amount: number;
+  unit: string;
+  synonyms?: string[];              // Alternative names (e.g., "scallion (green onion)")
+}
+
+// Enhanced nutritional info matching production schema
+export interface EnhancedNutritionalInfo {
+  calories: number;
+  protein_g: number;
+  fat_g: number;
+  carbs_g: number;
+}
+
 export interface Ingredient {
   id: string;
   name: string;

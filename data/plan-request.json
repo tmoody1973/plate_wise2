@@ -1,0 +1,9 @@
+{
+  "mealsTarget": 4,
+  "dietFlags": ["halal_friendly"],
+  "cultureTags": ["Mexican", "West African"],
+  "maxTime": 45,
+  "pantry": ["rice", "onion", "beans"],
+  "exclude": ["peanuts", "pork"]
+}
+

@@ -1,0 +1,331 @@
+{
+  "success": true,
+  "recipes": [
+    {
+      "id": "scraped-recipe-1",
+      "title": "Spicy Mexican Rice And Beans",
+      "description": "A quick and easy one-pan spicy Mexican rice and beans dish featuring white rice, kidney beans, and a blend of smoked chili paste, cumin, and coriander. This vegan and naturally gluten-free recipe is ready in just 30 minutes and excludes peanuts and pork, making it halal-friendly.",
+      "cuisine": "Mexican",
+      "sourceUrl": "https://www.elizabethskitchendiary.co.uk/spicy-mexican-rice-and-beans/",
+      "totalTimeMinutes": 30,
+      "servings": 4,
+      "ingredients": [
+        {
+          "name": "Chicken thighs",
+          "amount": 2,
+          "unit": "lbs",
+          "estimatedCost": 8
+        },
+        {
+          "name": "Corn tortillas",
+          "amount": 12,
+          "unit": "pieces",
+          "estimatedCost": 2
+        },
+        {
+          "name": "Chipotle peppers in adobo",
+          "amount": 3,
+          "unit": "pieces",
+          "estimatedCost": 1.5
+        },
+        {
+          "name": "White onion",
+          "amount": 1,
+          "unit": "medium",
+          "estimatedCost": 0.75
+        },
+        {
+          "name": "Roma tomatoes",
+          "amount": 2,
+          "unit": "medium",
+          "estimatedCost": 1.5
+        },
+        {
+          "name": "Mexican crema",
+          "amount": 0.5,
+          "unit": "cup",
+          "estimatedCost": 2
+        },
+        {
+          "name": "Fresh cilantro",
+          "amount": 1,
+          "unit": "bunch",
+          "estimatedCost": 1
+        }
+      ],
+      "instructions": [
+        {
+          "step": 1,
+          "text": "Season chicken thighs with salt and pepper, then sear in a hot skillet until golden."
+        },
+        {
+          "step": 2,
+          "text": "Add diced onions and cook until softened, about 5 minutes."
+        },
+        {
+          "step": 3,
+          "text": "Blend tomatoes with chipotle peppers and adobo sauce until smooth."
+        },
+        {
+          "step": 4,
+          "text": "Pour sauce over chicken, cover and simmer for 25 minutes until tender."
+        },
+        {
+          "step": 5,
+          "text": "Shred chicken with two forks and mix with the sauce."
+        },
+        {
+          "step": 6,
+          "text": "Warm tortillas and serve with chicken, crema, and fresh cilantro."
+        }
+      ],
+      "estimatedCost": 16.75,
+      "costPerServing": 4.1875
+    },
+    {
+      "id": "scraped-recipe-2",
+      "title": "Easy Vegan Rice And Black Beans",
+      "description": "An aromatic and satisfying Mexican rice and black beans recipe that is versatile as a main or side dish. It uses onion, garlic, rice, broth, and spices, cooked together for about 35-40 minutes. The recipe is vegan, excludes peanuts and pork, and fits halal dietary needs.",
+      "cuisine": "Mexican",
+      "sourceUrl": "https://www.myplantifulcooking.com/easy-vegan-rice-and-black-beans/",
+      "totalTimeMinutes": 40,
+      "servings": 4,
+      "ingredients": [
+        {
+          "name": "Chicken thighs",
+          "amount": 2,
+          "unit": "lbs",
+          "estimatedCost": 8
+        },
+        {
+          "name": "Corn tortillas",
+          "amount": 12,
+          "unit": "pieces",
+          "estimatedCost": 2
+        },
+        {
+          "name": "Chipotle peppers in adobo",
+          "amount": 3,
+          "unit": "pieces",
+          "estimatedCost": 1.5
+        },
+        {
+          "name": "White onion",
+          "amount": 1,
+          "unit": "medium",
+          "estimatedCost": 0.75
+        },
+        {
+          "name": "Roma tomatoes",
+          "amount": 2,
+          "unit": "medium",
+          "estimatedCost": 1.5
+        },
+        {
+          "name": "Mexican crema",
+          "amount": 0.5,
+          "unit": "cup",
+          "estimatedCost": 2
+        },
+        {
+          "name": "Fresh cilantro",
+          "amount": 1,
+          "unit": "bunch",
+          "estimatedCost": 1
+        }
+      ],
+      "instructions": [
+        {
+          "step": 1,
+          "text": "Season chicken thighs with salt and pepper, then sear in a hot skillet until golden."
+        },
+        {
+          "step": 2,
+          "text": "Add diced onions and cook until softened, about 5 minutes."
+        },
+        {
+          "step": 3,
+          "text": "Blend tomatoes with chipotle peppers and adobo sauce until smooth."
+        },
+        {
+          "step": 4,
+          "text": "Pour sauce over chicken, cover and simmer for 25 minutes until tender."
+        },
+        {
+          "step": 5,
+          "text": "Shred chicken with two forks and mix with the sauce."
+        },
+        {
+          "step": 6,
+          "text": "Warm tortillas and serve with chicken, crema, and fresh cilantro."
+        }
+      ],
+      "estimatedCost": 16.75,
+      "costPerServing": 4.1875
+    },
+    {
+      "id": "perplexity-recipe-3",
+      "title": "Quick And Easy Instant Pot Rice and Beans",
+      "description": "A flavorful Mexican Instant Pot rice and beans recipe made with black beans, long grain brown rice, onion, diced tomatoes, and chipotle salsa. It is a quick vegetarian dish suitable for halal diets, free from peanuts and pork, and ready in about 40 minutes including pressure cooking and resting time.",
+      "cuisine": "Mexican",
+      "sourceUrl": "https://thebellyrulesthemind.net/instant-pot-rice-and-beans-recipe/",
+      "totalTimeMinutes": 40,
+      "servings": 4,
+      "ingredients": [
+        {
+          "name": "Chicken thighs",
+          "amount": 2,
+          "unit": "lbs",
+          "estimatedCost": 8
+        },
+        {
+          "name": "Corn tortillas",
+          "amount": 12,
+          "unit": "pieces",
+          "estimatedCost": 2
+        },
+        {
+          "name": "Chipotle peppers in adobo",
+          "amount": 3,
+          "unit": "pieces",
+          "estimatedCost": 1.5
+        },
+        {
+          "name": "White onion",
+          "amount": 1,
+          "unit": "medium",
+          "estimatedCost": 0.75
+        },
+        {
+          "name": "Roma tomatoes",
+          "amount": 2,
+          "unit": "medium",
+          "estimatedCost": 1.5
+        },
+        {
+          "name": "Mexican crema",
+          "amount": 0.5,
+          "unit": "cup",
+          "estimatedCost": 2
+        },
+        {
+          "name": "Fresh cilantro",
+          "amount": 1,
+          "unit": "bunch",
+          "estimatedCost": 1
+        }
+      ],
+      "instructions": [
+        {
+          "step": 1,
+          "text": "Season chicken thighs with salt and pepper, then sear in a hot skillet until golden."
+        },
+        {
+          "step": 2,
+          "text": "Add diced onions and cook until softened, about 5 minutes."
+        },
+        {
+          "step": 3,
+          "text": "Blend tomatoes with chipotle peppers and adobo sauce until smooth."
+        },
+        {
+          "step": 4,
+          "text": "Pour sauce over chicken, cover and simmer for 25 minutes until tender."
+        },
+        {
+          "step": 5,
+          "text": "Shred chicken with two forks and mix with the sauce."
+        },
+        {
+          "step": 6,
+          "text": "Warm tortillas and serve with chicken, crema, and fresh cilantro."
+        }
+      ],
+      "estimatedCost": 16.75,
+      "costPerServing": 4.1875
+    },
+    {
+      "id": "perplexity-recipe-4",
+      "title": "One-Pot Mexican Rice & Black Beans",
+      "description": "A flavor-packed one-pot Mexican rice with black beans recipe that cooks in about 35 minutes. It involves sweating onions, adding garlic and spices, then cooking rice and beans together. This vegan recipe excludes peanuts and pork, making it halal-friendly and practical for home cooking.",
+      "cuisine": "Mexican",
+      "sourceUrl": "https://www.connoisseurusveg.com/black-beans-mexican-rice/",
+      "totalTimeMinutes": 35,
+      "servings": 4,
+      "ingredients": [
+        {
+          "name": "Chicken thighs",
+          "amount": 2,
+          "unit": "lbs",
+          "estimatedCost": 8
+        },
+        {
+          "name": "Corn tortillas",
+          "amount": 12,
+          "unit": "pieces",
+          "estimatedCost": 2
+        },
+        {
+          "name": "Chipotle peppers in adobo",
+          "amount": 3,
+          "unit": "pieces",
+          "estimatedCost": 1.5
+        },
+        {
+          "name": "White onion",
+          "amount": 1,
+          "unit": "medium",
+          "estimatedCost": 0.75
+        },
+        {
+          "name": "Roma tomatoes",
+          "amount": 2,
+          "unit": "medium",
+          "estimatedCost": 1.5
+        },
+        {
+          "name": "Mexican crema",
+          "amount": 0.5,
+          "unit": "cup",
+          "estimatedCost": 2
+        },
+        {
+          "name": "Fresh cilantro",
+          "amount": 1,
+          "unit": "bunch",
+          "estimatedCost": 1
+        }
+      ],
+      "instructions": [
+        {
+          "step": 1,
+          "text": "Season chicken thighs with salt and pepper, then sear in a hot skillet until golden."
+        },
+        {
+          "step": 2,
+          "text": "Add diced onions and cook until softened, about 5 minutes."
+        },
+        {
+          "step": 3,
+          "text": "Blend tomatoes with chipotle peppers and adobo sauce until smooth."
+        },
+        {
+          "step": 4,
+          "text": "Pour sauce over chicken, cover and simmer for 25 minutes until tender."
+        },
+        {
+          "step": 5,
+          "text": "Shred chicken with two forks and mix with the sauce."
+        },
+        {
+          "step": 6,
+          "text": "Warm tortillas and serve with chicken, crema, and fresh cilantro."
+        }
+      ],
+      "estimatedCost": 16.75,
+      "costPerServing": 4.1875
+    }
+  ],
+  "totalCost": 67,
+  "confidence": "high"
+}

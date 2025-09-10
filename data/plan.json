@@ -1,0 +1,364 @@
+{
+  "success": true,
+  "recipes": [
+    {
+      "id": "perplexity-recipe-1",
+      "title": "Spicy Mexican Rice and Beans Recipe - Elizabeth's Kitchen Diary",
+      "description": "A quick and easy one-pan spicy Mexican rice and beans dish made with white rice, kidney beans, and a blend of smoked chili paste, cumin, and coriander, ready in just 30 minutes. This vegan and naturally gluten-free recipe is flavorful and practical for home cooking.",
+      "cuisine": "Mexican",
+      "sourceUrl": "https://www.elizabethskitchendiary.co.uk/spicy-mexican-rice-and-beans/",
+      "totalTimeMinutes": 30,
+      "servings": 4,
+      "ingredients": [
+        {
+          "name": "Chicken thighs",
+          "amount": 2,
+          "unit": "lbs",
+          "estimatedCost": 8
+        },
+        {
+          "name": "Corn tortillas",
+          "amount": 12,
+          "unit": "pieces",
+          "estimatedCost": 2
+        },
+        {
+          "name": "Chipotle peppers in adobo",
+          "amount": 3,
+          "unit": "pieces",
+          "estimatedCost": 1.5
+        },
+        {
+          "name": "White onion",
+          "amount": 1,
+          "unit": "medium",
+          "estimatedCost": 0.75
+        },
+        {
+          "name": "Roma tomatoes",
+          "amount": 2,
+          "unit": "medium",
+          "estimatedCost": 1.5
+        },
+        {
+          "name": "Mexican crema",
+          "amount": 0.5,
+          "unit": "cup",
+          "estimatedCost": 2
+        },
+        {
+          "name": "Fresh cilantro",
+          "amount": 1,
+          "unit": "bunch",
+          "estimatedCost": 1
+        }
+      ],
+      "instructions": [
+        {
+          "step": 1,
+          "text": "Season chicken thighs with salt and pepper, then sear in a hot skillet until golden."
+        },
+        {
+          "step": 2,
+          "text": "Add diced onions and cook until softened, about 5 minutes."
+        },
+        {
+          "step": 3,
+          "text": "Blend tomatoes with chipotle peppers and adobo sauce until smooth."
+        },
+        {
+          "step": 4,
+          "text": "Pour sauce over chicken, cover and simmer for 25 minutes until tender."
+        },
+        {
+          "step": 5,
+          "text": "Shred chicken with two forks and mix with the sauce."
+        },
+        {
+          "step": 6,
+          "text": "Warm tortillas and serve with chicken, crema, and fresh cilantro."
+        }
+      ],
+      "estimatedCost": 16.75,
+      "costPerServing": 4.1875
+    },
+    {
+      "id": "perplexity-recipe-2",
+      "title": "Mexican Rice and Black Beans - My Plantiful Cooking",
+      "description": "A highly versatile and aromatic Mexican rice and black beans recipe that can be served as a main or side dish. It uses simple ingredients like rice, beans, onion, and spices, cooked together for about 40 minutes, suitable for halal diets and home cooking.",
+      "cuisine": "Mexican",
+      "sourceUrl": "https://www.myplantifulcooking.com/easy-vegan-rice-and-black-beans/",
+      "totalTimeMinutes": 40,
+      "servings": 4,
+      "ingredients": [
+        {
+          "name": "Chicken thighs",
+          "amount": 2,
+          "unit": "lbs",
+          "estimatedCost": 8
+        },
+        {
+          "name": "Corn tortillas",
+          "amount": 12,
+          "unit": "pieces",
+          "estimatedCost": 2
+        },
+        {
+          "name": "Chipotle peppers in adobo",
+          "amount": 3,
+          "unit": "pieces",
+          "estimatedCost": 1.5
+        },
+        {
+          "name": "White onion",
+          "amount": 1,
+          "unit": "medium",
+          "estimatedCost": 0.75
+        },
+        {
+          "name": "Roma tomatoes",
+          "amount": 2,
+          "unit": "medium",
+          "estimatedCost": 1.5
+        },
+        {
+          "name": "Mexican crema",
+          "amount": 0.5,
+          "unit": "cup",
+          "estimatedCost": 2
+        },
+        {
+          "name": "Fresh cilantro",
+          "amount": 1,
+          "unit": "bunch",
+          "estimatedCost": 1
+        }
+      ],
+      "instructions": [
+        {
+          "step": 1,
+          "text": "Season chicken thighs with salt and pepper, then sear in a hot skillet until golden."
+        },
+        {
+          "step": 2,
+          "text": "Add diced onions and cook until softened, about 5 minutes."
+        },
+        {
+          "step": 3,
+          "text": "Blend tomatoes with chipotle peppers and adobo sauce until smooth."
+        },
+        {
+          "step": 4,
+          "text": "Pour sauce over chicken, cover and simmer for 25 minutes until tender."
+        },
+        {
+          "step": 5,
+          "text": "Shred chicken with two forks and mix with the sauce."
+        },
+        {
+          "step": 6,
+          "text": "Warm tortillas and serve with chicken, crema, and fresh cilantro."
+        }
+      ],
+      "estimatedCost": 16.75,
+      "costPerServing": 4.1875
+    },
+    {
+      "id": "scraped-recipe-3",
+      "title": "Instant Pot Rice and Beans",
+      "description": "An easy and quick Mexican Instant Pot rice and beans recipe loaded with bold flavors from salsa and spices. It uses black beans, rice, onion, and chipotle salsa, cooked in about 30 minutes, perfect for a halal-friendly meal.",
+      "cuisine": "Mexican",
+      "sourceUrl": "https://thebellyrulesthemind.net/instant-pot-rice-and-beans-recipe/",
+      "imageUrl": null,
+      "totalTimeMinutes": 35,
+      "servings": 4,
+      "ingredients": [
+        {
+          "name": "(15 oz) can of black beans, rinsed and drained",
+          "amount": 1,
+          "unit": "piece",
+          "estimatedCost": 1.5
+        },
+        {
+          "name": "uncooked long grain brown rice",
+          "amount": 2,
+          "unit": "cup",
+          "estimatedCost": 3
+        },
+        {
+          "name": "(14 oz) diced tomato",
+          "amount": 1,
+          "unit": "piece",
+          "estimatedCost": 2
+        },
+        {
+          "name": "onion",
+          "amount": 1,
+          "unit": "chopped",
+          "estimatedCost": 1
+        },
+        {
+          "name": "water",
+          "amount": 2,
+          "unit": "cup",
+          "estimatedCost": 4
+        },
+        {
+          "name": "½ cup chipotle salsa (add more, if needed)",
+          "amount": 1,
+          "unit": "piece",
+          "estimatedCost": 2
+        },
+        {
+          "name": "cumin",
+          "amount": 2,
+          "unit": "tsp",
+          "estimatedCost": 4
+        },
+        {
+          "name": "oil",
+          "amount": 1,
+          "unit": "tbsp",
+          "estimatedCost": 3
+        },
+        {
+          "name": "to taste",
+          "amount": 1,
+          "unit": "salt",
+          "estimatedCost": 2
+        },
+        {
+          "name": "cloves/ minced",
+          "amount": 4,
+          "unit": "garlic",
+          "estimatedCost": 8
+        },
+        {
+          "name": "for garnish",
+          "amount": 1,
+          "unit": "cilantro",
+          "estimatedCost": 2
+        },
+        {
+          "name": "toppings: lime/ sour cream, tortilla chips, grated cheese, sliced avocado",
+          "amount": 1,
+          "unit": "Optional",
+          "estimatedCost": 4
+        }
+      ],
+      "instructions": [
+        {
+          "step": 1,
+          "text": "Press the 'saute' button and once it is hot add the garlic and onions."
+        },
+        {
+          "step": 2,
+          "text": "Add the chipotle salsa, salt, and cumin powder and give it a stir."
+        },
+        {
+          "step": 3,
+          "text": "Add in the rice, water and lastly add the diced tomato. (Do not stir after you add the tomatoes)"
+        },
+        {
+          "step": 4,
+          "text": "Place the lid and make sure the valve is on Sealing. Pressure cook for 20 mins.",
+          "timing": "20 mins"
+        },
+        {
+          "step": 5,
+          "text": "When the pot beeps let the pot sit for 10 minutes and then do a quick release of any additional pressure.",
+          "timing": "10 minutes"
+        },
+        {
+          "step": 6,
+          "text": "Add the black beans and chopped cilantro and mix everything well and serve it with your choice of topping."
+        }
+      ],
+      "estimatedCost": 36.5,
+      "costPerServing": 9.125
+    },
+    {
+      "id": "perplexity-recipe-4",
+      "title": "West African Jollof Rice (Halal Friendly)",
+      "description": "A classic West African one-pot rice dish cooked with tomatoes, onions, and spices. This halal-friendly recipe excludes peanuts and pork, uses accessible pantry staples like rice and onions, and is ready within 45 minutes, embodying authentic West African flavors.",
+      "cuisine": "West African",
+      "sourceUrl": "https://www.africanbites.com/jollof-rice/",
+      "totalTimeMinutes": 45,
+      "servings": 4,
+      "ingredients": [
+        {
+          "name": "Jasmine rice",
+          "amount": 2,
+          "unit": "cups",
+          "estimatedCost": 2
+        },
+        {
+          "name": "Chicken drumsticks",
+          "amount": 6,
+          "unit": "pieces",
+          "estimatedCost": 6
+        },
+        {
+          "name": "Tomato paste",
+          "amount": 3,
+          "unit": "tbsp",
+          "estimatedCost": 1
+        },
+        {
+          "name": "Bell peppers",
+          "amount": 2,
+          "unit": "medium",
+          "estimatedCost": 2
+        },
+        {
+          "name": "Scotch bonnet pepper",
+          "amount": 1,
+          "unit": "small",
+          "estimatedCost": 0.5
+        },
+        {
+          "name": "Chicken stock",
+          "amount": 3,
+          "unit": "cups",
+          "estimatedCost": 1.5
+        },
+        {
+          "name": "Curry powder",
+          "amount": 2,
+          "unit": "tsp",
+          "estimatedCost": 0.5
+        }
+      ],
+      "instructions": [
+        {
+          "step": 1,
+          "text": "Season chicken with salt, pepper, and curry powder. Brown in oil until golden."
+        },
+        {
+          "step": 2,
+          "text": "Remove chicken and sauté diced onions and bell peppers until soft."
+        },
+        {
+          "step": 3,
+          "text": "Add tomato paste and cook for 2 minutes until darkened."
+        },
+        {
+          "step": 4,
+          "text": "Add rice, stirring to coat with the tomato mixture."
+        },
+        {
+          "step": 5,
+          "text": "Pour in hot chicken stock, add scotch bonnet pepper whole."
+        },
+        {
+          "step": 6,
+          "text": "Return chicken to pot, cover and simmer for 20 minutes until rice is tender."
+        }
+      ],
+      "estimatedCost": 13.5,
+      "costPerServing": 3.375
+    }
+  ],
+  "totalCost": 83.5,
+  "confidence": "high"
+}

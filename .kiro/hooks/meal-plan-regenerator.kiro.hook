@@ -1,0 +1,16 @@
+{
+  "enabled": true,
+  "name": "Meal Plan Regenerator",
+  "description": "Automatically runs npm run plan:dev to regenerate meal plans when data/plan-request.json is saved, with error handling and diff display on success",
+  "version": "1",
+  "when": {
+    "type": "fileEdited",
+    "patterns": [
+      "data/plan-request.json"
+    ]
+  },
+  "then": {
+    "type": "askAgent",
+    "prompt": "When the file data/plan-request.json is saved:\n\n1. Run the command: npm run plan:dev\n   - This executes: tsx src/lib/meal-planning/clean-meal-planner.ts --in data/plan-request.json --out data/plan.json\n   - Use environment variables PERPLEXITY_API_KEY and WEBSCRAPING_AI_KEY from the shell\n   - Run only one instance at a time; queue the next run if a save happens while the hook is still running\n\n2. If the command exits with a non-zero status:\n   - Show the error output to help debug the issue\n\n3. On success:\n   - Open data/plan.json \n   - Show a diff against its previous version so I can review the changes made to the meal plan\n\nPlease handle debouncing of rapid saves (≈1–2s) and ensure proper error reporting."
+  }
+}

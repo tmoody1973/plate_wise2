@@ -2,12 +2,12 @@
 
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { useAuthContext } from '@/contexts/AuthContext';
+import { useAuth } from '@/contexts/AuthContext';
 import { LandingPage } from '@/components/landing/LandingPage';
 import { LoadingScreen } from '@/components/landing/LoadingScreen';
 
 export default function HomePage() {
-  const { user, loading } = useAuthContext();
+  const { user, loading } = useAuth();
   const router = useRouter();
 
   useEffect(() => {
