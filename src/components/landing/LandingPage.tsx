@@ -16,13 +16,13 @@ export function LandingPage() {
             <Logo variant="primary" size="md" />
             <div className="flex items-center space-x-4">
               <button
-                onClick={() => router.push('/auth')}
+                onClick={() => router.push('/sign-in')}
                 className="text-gray-700 hover:text-gray-900 font-medium transition-colors"
               >
                 Sign in
               </button>
               <button
-                onClick={() => router.push('/auth')}
+                onClick={() => router.push('/sign-in')}
                 className="bg-gray-900 text-white px-6 py-2 rounded-full font-medium hover:bg-gray-800 transition-colors"
               >
                 Get started
@@ -49,13 +49,13 @@ export function LandingPage() {
               </p>
               <div className="flex flex-col sm:flex-row gap-4 justify-center lg:justify-start">
                 <button
-                  onClick={() => router.push('/auth')}
+                  onClick={() => router.push('/sign-in')}
                   className="bg-gradient-to-r from-rose-500 to-orange-500 text-white px-8 py-4 rounded-full text-lg font-semibold hover:shadow-lg transform hover:scale-105 transition-all duration-200"
                 >
                   Start planning meals
                 </button>
                 <button
-                  onClick={() => router.push('/auth')}
+                  onClick={() => router.push('/sign-in')}
                   className="border-2 border-gray-300 text-gray-700 px-8 py-4 rounded-full text-lg font-semibold hover:border-gray-400 hover:bg-gray-50 transition-all duration-200"
                 >
                   Learn more
@@ -268,7 +268,7 @@ export function LandingPage() {
             Join thousands of families who are saving money while celebrating their culinary heritage
           </p>
           <button
-            onClick={() => router.push('/auth')}
+            onClick={() => router.push('/sign-in')}
             className="bg-gradient-to-r from-rose-500 to-orange-500 text-white px-12 py-4 rounded-full text-xl font-semibold hover:shadow-lg transform hover:scale-105 transition-all duration-200"
           >
             Start your culinary journey
@@ -291,13 +291,13 @@ export function LandingPage() {
             </div>
             <div className="flex space-x-8">
               <button
-                onClick={() => router.push('/auth')}
+                onClick={() => router.push('/sign-in')}
                 className="text-gray-400 hover:text-white transition-colors"
               >
                 Sign in
               </button>
               <button
-                onClick={() => router.push('/auth')}
+                onClick={() => router.push('/sign-in')}
                 className="text-gray-400 hover:text-white transition-colors"
               >
                 Get started

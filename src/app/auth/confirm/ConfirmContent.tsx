@@ -103,7 +103,7 @@ export default function ConfirmContent() {
         </p>
         <div className="space-y-3">
           <button
-            onClick={() => router.push('/auth' as any)}
+            onClick={() => router.push('/sign-in' as any)}
             className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-lg transition-colors"
           >
             Back to Sign In

@@ -67,7 +67,7 @@ export default function ResetPasswordForm() {
         setIsSuccess(true);
         // Redirect to sign in after a short delay
         setTimeout(() => {
-          router.push('/auth' as any);
+          router.push('/sign-in' as any);
         }, 3000);
       } else if (result.error) {
         setErrors({ general: result.error.message || 'Failed to update password' });
@@ -113,7 +113,7 @@ export default function ResetPasswordForm() {
             This password reset link is invalid or has expired. Please request a new one.
           </p>
           <Button
-            onClick={() => router.push('/auth' as any)}
+            onClick={() => router.push('/sign-in' as any)}
             className="w-full bg-blue-600 hover:bg-blue-700 text-white"
           >
             Back to Sign In
@@ -218,7 +218,7 @@ export default function ResetPasswordForm() {
 
           <div className="mt-6 text-center">
             <button
-              onClick={() => router.push('/auth' as any)}
+              onClick={() => router.push('/sign-in' as any)}
               className="text-sm text-blue-600 hover:text-blue-500 font-medium"
             >
               ← Back to Sign In

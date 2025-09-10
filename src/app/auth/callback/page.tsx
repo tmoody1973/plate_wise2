@@ -94,7 +94,7 @@ export default function AuthCallbackPage() {
         <h2 className="text-xl font-semibold text-gray-900 mb-2">Sign In Failed</h2>
         <p className="text-gray-600 mb-6">{error || 'An error occurred during authentication'}</p>
         <button
-          onClick={() => router.push('/auth' as any)}
+          onClick={() => router.push('/sign-in' as any)}
           className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-lg transition-colors"
         >
           Try Again
