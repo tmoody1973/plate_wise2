@@ -33,6 +33,12 @@ interface Recipe {
       productName: string;
       size: string;
       brand: string;
+      // Enhanced pricing metadata
+      packageCount?: number;
+      baseUnit?: 'g' | 'ml' | 'each';
+      packageSize?: number; // in baseUnit
+      requiredAmount?: number; // in baseUnit
+      leftoverAmount?: number; // in baseUnit
       alternatives: Array<{
         name: string;
         price: number;
@@ -72,6 +78,83 @@ interface SearchResult {
   brand: string;
   confidence: string;
   isBestMatch: boolean;
+}
+
+// ----- Pricing helpers -----
+function normalizeVulgarFractions(s: string): string {
+  return (s || '')
+    .replace(/¼/g, '1/4').replace(/½/g, '1/2').replace(/¾/g, '3/4')
+    .replace(/⅐/g, '1/7').replace(/⅑/g, '1/9').replace(/⅒/g, '1/10')
+    .replace(/⅓/g, '1/3').replace(/⅔/g, '2/3')
+    .replace(/⅕/g, '1/5').replace(/⅖/g, '2/5').replace(/⅗/g, '3/5').replace(/⅘/g, '4/5')
+    .replace(/⅙/g, '1/6').replace(/⅚/g, '5/6')
+    .replace(/⅛/g, '1/8').replace(/⅜/g, '3/8').replace(/⅝/g, '5/8').replace(/⅞/g, '7/8')
+}
+
+function parseMixedNumber(s: string): number {
+  const t = normalizeVulgarFractions(s).trim()
+  const m = t.match(/^(\d+)\s+(\d+)\/(\d+)$/)
+  if (m) return parseFloat(m[1]!) + (parseFloat(m[2]!) / parseFloat(m[3]!))
+  const f = t.match(/^(\d+)\/(\d+)$/)
+  if (f) return parseFloat(f[1]!) / parseFloat(f[2]!)
+  const n = parseFloat(t)
+  return Number.isFinite(n) ? n : 0
+}
+
+function toBaseUnits(amount: number, unit: string): { value: number; base: 'g'|'ml'|'each' } {
+  const u = (unit || '').toLowerCase()
+  // weight
+  if (['g','gram','grams'].includes(u)) return { value: amount, base: 'g' }
+  if (['kg','kilogram','kilograms'].includes(u)) return { value: amount * 1000, base: 'g' }
+  if (['oz','ounce','ounces'].includes(u)) return { value: amount * 28.3495, base: 'g' }
+  if (['lb','pound','pounds'].includes(u)) return { value: amount * 453.592, base: 'g' }
+  // volume
+  if (['ml','milliliter','milliliters'].includes(u)) return { value: amount, base: 'ml' }
+  if (['l','liter','liters'].includes(u)) return { value: amount * 1000, base: 'ml' }
+  if (['tsp','teaspoon','teaspoons'].includes(u)) return { value: amount * 4.92892, base: 'ml' }
+  if (['tbsp','tablespoon','tablespoons'].includes(u)) return { value: amount * 14.7868, base: 'ml' }
+  if (['cup','cups'].includes(u)) return { value: amount * 236.588, base: 'ml' }
+  // each-like
+  if (['clove','cloves','piece','pieces','slice','slices','can','cans','package','packages'].includes(u)) return { value: amount, base: 'each' }
+  // default fallback
+  return { value: amount, base: 'each' }
+}
+
+function parseSizeToBase(size: string): { qty: number; base: 'g'|'ml'|'each' } | null {
+  const s = (size || '').toLowerCase()
+  // Extract first number+unit like "14 oz", "500 g", "1 lb", "1 l"
+  const m = s.match(/(\d+(?:\.\d+)?)\s*(oz|ounce|ounces|lb|pound|pounds|g|gram|grams|kg|l|liter|liters|ml|milliliter|milliliters)\b/)
+  if (m) {
+    const qty = parseFloat(m[1] || '0')
+    const unit = m[2] || ''
+    const conv = toBaseUnits(qty, unit)
+    return { qty: conv.value, base: conv.base }
+  }
+  // Each fallback: check for counts like "12 count" or lack of units
+  const c = s.match(/(\d+)\s*(count|ct|pk|pack|pieces?)?/)
+  if (c) return { qty: parseFloat(c[1] || '1'), base: 'each' }
+  return null
+}
+
+function computeIngredientCost(
+  ingredient: { amount: string; unit: string },
+  product: { price: number; size: string },
+  byPackage: boolean = true
+): { unitPrice: number; totalCost: number; packageCount: number; base: 'g'|'ml'|'each'; packageSize: number; required: number; leftover: number } | null {
+  const reqAmt = parseMixedNumber(ingredient.amount || '0')
+  const reqConv = toBaseUnits(reqAmt, ingredient.unit || '')
+  const pack = parseSizeToBase(product.size || '')
+  if (!pack || !Number.isFinite(product.price) || product.price <= 0) return null
+  const unitPrice = product.price / (pack.qty || 1)
+  if (byPackage) {
+    const packages = Math.max(1, Math.ceil((reqConv.value || 0) / pack.qty))
+    const total = packages * product.price
+    const leftover = packages * pack.qty - (reqConv.value || 0)
+    return { unitPrice, totalCost: total, packageCount: packages, base: pack.base, packageSize: pack.qty, required: reqConv.value || 0, leftover: Math.max(0, leftover) }
+  } else {
+    const total = (reqConv.value || 0) * unitPrice
+    return { unitPrice, totalCost: total, packageCount: 1, base: pack.base, packageSize: pack.qty, required: reqConv.value || 0, leftover: Math.max(0, pack.qty - (reqConv.value || 0)) }
+  }
 }
 
 export default function MealPlannerV2() {
@@ -590,20 +673,27 @@ export default function MealPlannerV2() {
           ...recipe,
           ingredients: recipe.ingredients.map(ing => {
             if (ing.id === searchingIngredient.ingredientId) {
+              // Compute smarter per-unit cost
+              const comp = computeIngredientCost({ amount: ing.amount, unit: ing.unit }, { price: searchResult.onSale && searchResult.salePrice ? searchResult.salePrice : searchResult.price, size: searchResult.size }, true)
               return {
                 ...ing,
                 name: searchResult.cleanName,
                 isSubstituted: true,
                 userStatus: 'normal' as const,
-                krogerPrice: recipe.hasPricing ? {
-                  unitPrice: searchResult.price,
-                  totalCost: searchResult.price * parseFloat(ing.amount || '1'),
+                krogerPrice: comp ? {
+                  unitPrice: comp.unitPrice,
+                  totalCost: comp.totalCost,
                   confidence: searchResult.confidence,
                   onSale: searchResult.onSale,
                   salePrice: searchResult.salePrice,
                   productName: searchResult.name,
                   size: searchResult.size,
                   brand: searchResult.brand,
+                  packageCount: comp.packageCount,
+                  baseUnit: comp.base,
+                  packageSize: comp.packageSize,
+                  requiredAmount: comp.required,
+                  leftoverAmount: comp.leftover,
                   alternatives: []
                 } : undefined
               };
@@ -1206,6 +1296,12 @@ export default function MealPlannerV2() {
                       <div className="font-medium">{result.cleanName}</div>
                       <div className="text-sm text-gray-600">
                         {result.brand} • {result.size}
+                        {(() => {
+                          const pack = parseSizeToBase(result.size)
+                          if (!pack) return null
+                          const unitPrice = (result.onSale && result.salePrice ? result.salePrice : result.price) / (pack.qty || 1)
+                          return <span className="ml-2 text-gray-500">(${unitPrice.toFixed(2)} per {pack.base})</span>
+                        })()}
                         {result.isBestMatch && <span className="ml-2 text-blue-600 text-xs">BEST MATCH</span>}
                       </div>
                     </div>
