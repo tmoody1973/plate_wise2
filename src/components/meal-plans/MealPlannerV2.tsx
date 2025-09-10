@@ -1593,7 +1593,7 @@ export default function MealPlannerV2() {
                           const rec = recipes.find(r => r.id === searchingIngredient?.recipeId)
                           const ing = rec?.ingredients.find(i => i.id === searchingIngredient?.ingredientId)
                           if (!ing) return null
-                          const comp = computeIngredientCost({ amount: ing.amount, unit: ing.unit }, { price: result.onSale && result.salePrice ? result.salePrice : result.price, size: result.size }, true)
+                          const comp = computeIngredientCost({ amount: ing.amount, unit: ing.unit }, { price: result.onSale && result.salePrice ? result.salePrice : result.price, size: result.size }, config.costMode !== 'proportional')
                           if (!comp) return null
                           const needed = Math.round(comp.required)
                           const packSz = Math.round(comp.packageSize)
