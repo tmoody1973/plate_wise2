@@ -4,6 +4,22 @@ import { cookies } from 'next/headers'
 import { Database } from '@/types/database'
 import { searchRecipes } from '@/lib/recipes/search'
 
+function extractUnitFromName(name: string): { cleaned: string; unit?: string } {
+  const KNOWN = [
+    'cup','cups','tablespoon','tablespoons','tbsp','teaspoon','teaspoons','tsp',
+    'oz','ounce','ounces','lb','pound','pounds','g','gram','grams','kg','ml','milliliter','milliliters','l','liter','liters',
+    'clove','cloves','sprig','sprigs','can','cans','package','packages','slice','slices','piece','pieces'
+  ]
+  for (const u of KNOWN) {
+    const re = new RegExp(`(^|\\s)${u}(s)?(\\s|$)`, 'i')
+    if (re.test(name)) {
+      const cleaned = name.replace(new RegExp(`\\b${u}(s)?\\b`, 'i'), '').replace(/\s{2,}/g, ' ').trim()
+      return { cleaned: cleaned || name, unit: u }
+    }
+  }
+  return { cleaned: name, unit: undefined }
+}
+
 export async function POST(request: NextRequest) {
   const supabase = createRouteHandlerClient<Database>({ cookies })
 
@@ -117,15 +133,20 @@ export async function POST(request: NextRequest) {
       description: recipe.description || '',
       culturalOrigin: [recipe.cuisine || primaryCuisine],
       cuisine: recipe.cuisine || primaryCuisine,
-      ingredients: (recipe.ingredients || []).map((ing: any, ingIndex: number) => ({
-        id: `ingredient-${ingIndex}`,
-        name: ing.item || ing.name,
-        amount: String(ing.quantity ?? ing.amount ?? ''),
-        unit: String(ing.unit ?? ''),
-        originalName: ing.item || ing.name,
-        isSubstituted: false,
-        userStatus: 'normal' as const,
-      })),
+      ingredients: (recipe.ingredients || []).map((ing: any, ingIndex: number) => {
+        const rawName = String(ing.item || ing.name || '')
+        const baseUnit = String(ing.unit || '').trim()
+        const parsed = !baseUnit ? extractUnitFromName(rawName) : { cleaned: rawName, unit: baseUnit }
+        return {
+          id: `ingredient-${ingIndex}`,
+          name: parsed.cleaned,
+          amount: String(ing.quantity ?? ing.amount ?? ''),
+          unit: parsed.unit || baseUnit || '',
+          originalName: rawName,
+          isSubstituted: false,
+          userStatus: 'normal' as const,
+        }
+      }),
       instructions: (recipe.instructions || []).map((inst: any) => inst.text || String(inst.description || inst)),
       metadata: {
         servings: Number(recipe.servings) || 4,

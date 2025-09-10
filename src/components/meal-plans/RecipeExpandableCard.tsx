@@ -240,7 +240,9 @@ export default function RecipeExpandableCard({
                                 <span className={`text-lg font-medium ${
                                   ingredient.userStatus === 'already-have' ? 'line-through text-gray-500' : 'text-gray-900'
                                 }`}>
-                                  {ingredient.amount} {ingredient.name}
+                                  {ingredient.amount}
+                                  {ingredient.unit ? ` ${ingredient.unit}` : ''}
+                                  {` ${ingredient.name}`}
                                 </span>
                                 
                                 {ingredient.isSubstituted && (
