@@ -6,7 +6,6 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { ExpandableRowCard } from '@/components/ui/expandable-row-card';
 import { RecipeRowHeader } from '@/components/meal-plans/RecipeRowCard';
 import { RecipeDialog } from '@/components/meal-plans/RecipeDialog';
-import { useSearchParams } from 'next/navigation';
 import { useAuthContext } from '@/contexts/AuthContext';
 import { useProfileSetup } from '@/hooks/useProfileSetup';
 import { recipeDatabaseService } from '@/lib/recipes/recipe-database-service';
