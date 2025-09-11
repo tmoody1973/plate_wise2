@@ -3,7 +3,7 @@
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 
-const CUISINES = ['mexican','japanese','indian','italian','haitian','brazilian','hmong','chinese','korean','vietnamese','greek','ethiopian'];
+const CUISINES = ['african-american','cajun','creole','caribbean','west indies','sichuan','cantonese','hunan','shanghai','japanese','indian','italian','brazilian','hmong','chinese','korean','vietnamese','greek','ethiopian'];
 const CATEGORIES = [
   { value: 'main', label: 'Main Dish' },
   { value: 'soup_stew', label: 'Soups & Stews' },
@@ -15,7 +15,7 @@ export default function PlannerV3Start() {
   const router = useRouter();
   const [people, setPeople] = useState(4);
   const [days, setDays] = useState(7);
-  const [cuisines, setCuisines] = useState<string[]>(['mexican']);
+  const [cuisines, setCuisines] = useState<string[]>([]);
   const [categories, setCategories] = useState<string[]>(['main']);
   const [budget, setBudget] = useState<'low'|'medium'|'comfortable'>('medium');
   const [diet, setDiet] = useState<string[]>([]);
@@ -26,12 +26,13 @@ export default function PlannerV3Start() {
 
   const startPlan = () => {
     const params = new URLSearchParams();
-    params.set('culturalCuisines', cuisines.join(','));
+    if (cuisines.length) params.set('culturalCuisines', cuisines.join(','));
     params.set('dishCategories', categories.join(','));
     params.set('householdSize', String(people));
     params.set('weeklyBudget', String(weeklyBudget));
     params.set('days', String(days));
-    params.set('autofill', '1');
+    // do not autofill; let user apply filters in the planner
+    params.set('openSheet', 'suggestions');
     if (diet.length) params.set('dietaryRestrictions', diet.join(','));
     router.push(`/meal-plans/plan?${params.toString()}`);
   };

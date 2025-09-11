@@ -28,7 +28,7 @@ export default function PlannerV3() {
   const [loadingMyRecipes, setLoadingMyRecipes] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const [culturalCuisines, setCulturalCuisines] = useState<string[]>(['mexican']);
+  const [culturalCuisines, setCulturalCuisines] = useState<string[]>([]);
   const [dishCategories, setDishCategories] = useState<string[]>(['main']);
   const [dietaryRestrictions, setDietaryRestrictions] = useState<string[]>([]);
 

@@ -61,7 +61,7 @@ export async function POST(request: NextRequest) {
     }
     const body = await request.json();
     const {
-      culturalCuisines = ['mexican'],
+      culturalCuisines = [],
       dietaryRestrictions = [],
       mealTypes = ['dinner'],
       dishCategories = ['main'],
