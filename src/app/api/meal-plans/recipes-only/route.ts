@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { searchRecipes } from '@/lib/recipes/search';
+import { ogImageExtractor } from '@/lib/integrations/og-image-extractor';
 
 function extractUnitFromName(name: string): { cleaned: string; unit?: string } {
   const KNOWN = [
@@ -63,6 +64,7 @@ export async function POST(request: NextRequest) {
       culturalCuisines = ['mexican'],
       dietaryRestrictions = [],
       mealTypes = ['dinner'],
+      dishCategories = ['main'],
       mealCount = 7,
       includeIngredients = [],
       excludeIngredients = [],
@@ -86,12 +88,42 @@ export async function POST(request: NextRequest) {
     }
 
     const mealText = Array.isArray(mealTypes) && mealTypes.length ? mealTypes.join(' ') : 'dinner'
+    const categoryText = Array.isArray(dishCategories) && dishCategories.length ? dishCategories.join(' ') : ''
     const dietText = (dietaryRestrictions || []).includes('vegan') ? 'vegan' : (dietaryRestrictions || []).includes('vegetarian') ? 'vegetarian' : ''
-    const query = `${culturalCuisines.join(' ')} ${mealText} ${dietText} authentic home-style recipes`.trim()
+
+    // Map cultures to synonyms to steer web search and enable stricter filtering
+    const CULTURE_SYNONYMS: Record<string, string[]> = {
+      'african-american': [
+        'african-american', 'african american', 'black american', 'soul food',
+        'southern black', 'southern united states', 'southern cuisine', 'gullah geechee'
+      ],
+      'mexican': ['mexican'],
+      'hmong': ['hmong'],
+      'haitian': ['haitian'],
+      'japanese': ['japanese'],
+      'chinese': ['chinese'],
+      'indian': ['indian'],
+      'italian': ['italian'],
+      'greek': ['greek'],
+      'brazilian': ['brazilian'],
+      'thai': ['thai'],
+      'vietnamese': ['vietnamese'],
+      'ethiopian': ['ethiopian']
+    }
+
+    const cultureTerms: string[] = []
+    for (const c of (culturalCuisines || [])) {
+      const key = String(c).toLowerCase().trim()
+      const syns = CULTURE_SYNONYMS[key] || [key]
+      cultureTerms.push(...syns)
+    }
+
+    const query = `${cultureTerms.join(' OR ')} ${mealText} ${categoryText} ${dietText} authentic home-style recipes`.trim()
 
     const autoExcludes = buildDietaryExclusions(dietaryRestrictions)
     const resp = await searchRecipes({
-      query,
+      // Strengthen instruction to avoid drifting into unrelated cuisines when culture terms are present
+      query: `${query} ${cultureTerms.length ? 'Return recipes specifically from these cuisines only; avoid unrelated African or Caribbean cuisines unless they are explicitly African-American (soul food).' : ''}`.trim(),
       country: (typeof country === 'string' && country.trim()) ? country.trim() : undefined,
       includeIngredients: Array.isArray(includeIngredients) && includeIngredients.length ? includeIngredients : undefined,
       excludeIngredients: Array.from(new Set([...(excludeIngredients || []), ...autoExcludes])),
@@ -100,6 +132,35 @@ export async function POST(request: NextRequest) {
     })
 
     let picked = resp.recipes || []
+
+    // Optional category filter (keyword-based, fail-soft)
+    const CATEGORY_KEYWORDS: Record<string, string[]> = {
+      appetizer: ['appetizer','starter','finger food','snack','tapas'],
+      bread: ['bread','flatbread','naan','rolls','tortilla','loaf'],
+      breakfast: ['breakfast','pancake','waffle','omelet','omelette','oatmeal','granola','toast'],
+      dessert: ['dessert','sweet','cake','cookie','brownie','pie','pudding','ice cream','tart','custard'],
+      drink: ['drink','beverage','smoothie','juice','shake','cocktail','mocktail','tea','coffee'],
+      main: ['main','entree','one-pot','casserole','stir-fry','roast','bake','grill','braise','curry'],
+      salad: ['salad'],
+      side: ['side','side dish'],
+      soup_stew: ['soup','stew','chowder','broth','bisque'],
+      sauce: ['sauce','marinade','dressing','dip','relish','chutney'],
+      other: [],
+    };
+
+    const wanted = new Set((dishCategories || []).map((s: string) => String(s).toLowerCase()))
+    if (wanted.size > 0) {
+      const isMatch = (rec: any) => {
+        const hay = `${(rec.title||'')} ${(rec.description||'')} ${(rec.source||'')}`.toLowerCase()
+        for (const cat of wanted) {
+          const kws = CATEGORY_KEYWORDS[cat] || []
+          if (kws.some(kw => hay.includes(kw))) return true
+        }
+        return wanted.has('other') // allow 'other' as catch-all
+      }
+      const filtered = picked.filter(isMatch)
+      if (filtered.length > 0) picked = filtered
+    }
     // Post-filter by dietary if needed
     if ((dietaryRestrictions || []).length) {
       const isVegan = dietaryRestrictions.includes('vegan')
@@ -114,11 +175,76 @@ export async function POST(request: NextRequest) {
       }
       picked = picked.filter(ok)
     }
-    if (!picked.length) throw new Error('Failed to find recipes')
+    // Cultural hard filter: if cultures provided, keep strong matches to synonyms
+    if ((culturalCuisines || []).length) {
+      const synSet = new Set(cultureTerms)
+      const strongMatch = (rec: any): boolean => {
+        const hay = `${(rec.title||'')} ${(rec.description||'')} ${(rec.cuisine||'')} ${(rec.source||'')}`.toLowerCase()
+        // Must include at least one synonym
+        let ok = false
+        for (const t of synSet) { if (t && hay.includes(t)) { ok = true; break } }
+        // Guardrails for African-American: avoid other Caribbean/African tags when this culture selected
+        if (ok && cultureTerms.some(t => t.includes('african-american') || t.includes('soul food'))) {
+          if (/\bhaitian|nigerian|ghanaian|ethiopian|kenyan|senegalese|caribbean\b/i.test(hay)) {
+            // allow if it also says soul food/african-american explicitly
+            const aa = /\b(soul food|african[-\s]?american|southern (black )?cuisine|gullah\s*geechee)\b/i.test(hay)
+            if (!aa) ok = false
+          }
+        }
+        return ok
+      }
+      const culturallyFiltered = picked.filter(strongMatch)
+      if (culturallyFiltered.length) picked = culturallyFiltered
+    }
+
+    if (!picked.length) {
+      // Fail-soft fallback: broaden query and retry once or twice
+      const baseQuery = `${culturalCuisines.join(' ')} ${dietText} recipes`.trim() || 'family dinner recipes'
+      try {
+        const retry1 = await searchRecipes({
+          query: baseQuery,
+          country: (typeof country === 'string' && country.trim()) ? country.trim() : undefined,
+          maxResults: Math.min(Math.max(1, Number(mealCount) || 7), 12),
+          detailedInstructions: true,
+        })
+        picked = retry1.recipes || []
+      } catch {}
+
+      if (!picked.length) {
+        try {
+          const retry2 = await searchRecipes({
+            query: 'easy weeknight recipes',
+            country: 'United States',
+            maxResults: 7,
+            detailedInstructions: true,
+          })
+          picked = retry2.recipes || []
+        } catch {}
+      }
+    }
+
+    if (!picked.length) {
+      return NextResponse.json({
+        success: true,
+        message: 'No matches for filters; returned 0 results',
+        data: { recipes: [], summary: { totalRecipes: 0, culturalDiversity: [], averageTime: 0, readyForPricing: false, enhancedSearch: true, realUrls: 0, withImages: 0 } },
+        timestamp: new Date().toISOString()
+      })
+    }
 
     console.log(`✅ Found ${picked.length} recipes via Discover pipeline`)
 
-    const recipes = picked.map((recipe, index) => ({
+    // Extract og:images from recipe URLs in parallel
+    console.log('🖼️ Extracting recipe images from source URLs...');
+    const recipeUrls = picked.map(recipe => recipe.source).filter(Boolean);
+    const ogImageResults = await ogImageExtractor.extractMultipleOGImages(recipeUrls);
+
+    const recipes = picked.map((recipe, index) => {
+      // Get the best image: either from recipe.image or extracted og:image
+      const ogData = recipe.source ? ogImageResults.get(recipe.source) : null;
+      const imageUrl = recipe.image || ogData?.bestImage || undefined;
+
+      return {
       id: `recipe-${Date.now()}-${index}`,
       title: recipe.title,
       description: recipe.description || '',
@@ -151,14 +277,15 @@ export async function POST(request: NextRequest) {
         culturalAuthenticity: 'high',
         estimatedTime: recipe.total_time_minutes || 40,
       },
-      imageUrl: recipe.image,
+      imageUrl,
       source: 'enhanced-search',
       sourceUrl: recipe.source, // Real URLs from web search
-      tags: [],
+      tags: Array.from(new Set([...(dishCategories||[])])),
       hasPricing: false, // Indicates pricing not yet loaded
       createdAt: new Date(),
       updatedAt: new Date()
-    }));
+      };
+    });
 
     console.log('🎯 Recipe conversion summary:', {
       totalRecipes: recipes.length,
