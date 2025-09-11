@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ExpandableRowCard } from '@/components/ui/expandable-row-card';
 import { RecipeRowHeader } from '@/components/meal-plans/RecipeRowCard';
