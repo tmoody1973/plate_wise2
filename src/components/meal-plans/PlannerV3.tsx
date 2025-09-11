@@ -125,7 +125,7 @@ export default function PlannerV3() {
     { value: 'drink', label: 'Drinks' },
   ];
   const [newCulture, setNewCulture] = useState('');
-  const [refineOpen, setRefineOpen] = useState(false);
+  // Refine bar is always visible on desktop now
   // New compact refine bar controls
   const [maxPrepTime, setMaxPrepTime] = useState<string>('any');
   const [difficultyFilter, setDifficultyFilter] = useState<'any'|'easy'|'medium'|'hard'>('any');
@@ -896,7 +896,7 @@ export default function PlannerV3() {
               <input type="number" className="w-24 p-1 border rounded" value={weeklyBudget}
                 onChange={(e) => setWeeklyBudget(parseFloat(e.target.value) || 0)} />
             </div>
-            <button className="hidden md:inline px-4 py-2 bg-blue-600 text-white rounded" onClick={()=> setRefineOpen(o=>!o)}>{refineOpen ? 'Close Refine' : 'Refine Plan'}</button>
+            {/* Refine button removed; refine bar is always visible below */}
             <a className="hidden md:inline text-gray-600 hover:underline" href="/meal-plans">Classic</a>
             <button className="hidden md:inline px-4 py-2 bg-blue-600 text-white rounded" onClick={() => fetchSuggestions()}>Refresh</button>
             <button className="px-3 md:px-4 py-2 bg-green-600 text-white rounded" onClick={pricePlan}>Price</button>
@@ -924,15 +924,14 @@ export default function PlannerV3() {
         <div className="text-lg font-semibold mb-1">How to use</div>
         <ol className="list-decimal pl-5 text-sm text-gray-700 space-y-1">
           <li>Click “Get suggestions” under a day to see ideas. Tap “Add” to place a meal; “Swap” replaces it later.</li>
-          <li>Click “Refine Plan” to change cuisines, dietary needs, or categories. Click “Apply Filters” to refresh ideas.</li>
+          <li>Use the filter bar to change cuisines, dietary needs, or categories. Click “Apply Filters” to refresh ideas.</li>
           <li>Click “Rebuild Plan” if you want to refill the week from the filters. We’ll ask before replacing anything.</li>
           <li>Click “View” on a meal to see the full recipe. Click “Price” at the top when you’re ready to see your total.</li>
         </ol>
       </div>
 
-      {/* Refine bar (desktop) */}
-      {refineOpen && (
-        <div className="hidden md:block bg-white border rounded-2xl shadow-sm p-3">
+      {/* Refine bar (desktop) – always visible */}
+      <div className="hidden md:block bg-white border rounded-2xl shadow-sm p-3">
           <div className="flex items-center gap-3">
             {/* Filters laid out evenly */}
             <div className="flex-1 grid grid-cols-5 gap-3">
@@ -1035,9 +1034,8 @@ export default function PlannerV3() {
                 <Search className="w-4 h-4" /> Apply Filters
               </button>
             </div>
-          </div>
+            </div>
         </div>
-      )}
 
       {error && (
         <div className="p-3 bg-red-50 border border-red-200 rounded text-sm text-red-800">{error}</div>
