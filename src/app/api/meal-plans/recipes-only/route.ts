@@ -208,27 +208,27 @@ export async function POST(request: NextRequest) {
       }
       picked = picked.filter(ok)
     }
-    // Cultural hard filter: if cultures provided, keep strong matches to synonyms
-    if ((culturalCuisines || []).length) {
-      const synSet = new Set(cultureTerms)
+    // Cultural hard filter helper and first pass
+    const applyCulturalFilter = (list: any[]) => {
+      if (!(culturalCuisines || []).length) return list
+      const synSet = new Set(cultureTerms.map(s => s.toLowerCase()))
       const strongMatch = (rec: any): boolean => {
         const hay = `${(rec.title||'')} ${(rec.description||'')} ${(rec.cuisine||'')} ${(rec.source||'')}`.toLowerCase()
-        // Must include at least one synonym
         let ok = false
         for (const t of synSet) { if (t && hay.includes(t)) { ok = true; break } }
-        // Guardrails for African-American: avoid other Caribbean/African tags when this culture selected
-        if (ok && cultureTerms.some(t => t.includes('african-american') || t.includes('soul food'))) {
+        // Guardrails for African-American
+        if (ok && cultureTerms.some(t => /african[-\s]?american|soul\s*food/i.test(t))) {
           if (/\bhaitian|nigerian|ghanaian|ethiopian|kenyan|senegalese|caribbean\b/i.test(hay)) {
-            // allow if it also says soul food/african-american explicitly
-            const aa = /\b(soul food|african[-\s]?american|southern (black )?cuisine|gullah\s*geechee)\b/i.test(hay)
+            const aa = /\b(soul\s*food|african[-\s]?american|southern (black )?cuisine|gullah\s*geechee)\b/i.test(hay)
             if (!aa) ok = false
           }
         }
         return ok
       }
-      const culturallyFiltered = picked.filter(strongMatch)
-      if (culturallyFiltered.length) picked = culturallyFiltered
+      const out = list.filter(strongMatch)
+      return out.length ? out : list // if strict filter empties, keep original to avoid zero unless later we decide to show none
     }
+    picked = applyCulturalFilter(picked)
 
     if (!picked.length) {
       // Fail-soft fallback: broaden query and retry once or twice
@@ -240,18 +240,23 @@ export async function POST(request: NextRequest) {
           maxResults: Math.min(Math.max(1, Number(mealCount) || 7), 12),
           detailedInstructions: true,
         })
-        picked = retry1.recipes || []
+        picked = applyCulturalFilter(retry1.recipes || [])
       } catch {}
 
       if (!picked.length) {
         try {
-          const retry2 = await searchRecipes({
-            query: 'easy weeknight recipes',
-            country: 'United States',
-            maxResults: 7,
-            detailedInstructions: true,
-          })
-          picked = retry2.recipes || []
+          // If a culture is specified, do not broaden to generic; keep strict
+          if ((culturalCuisines || []).length === 0) {
+            const retry2 = await searchRecipes({
+              query: 'easy weeknight recipes',
+              country: 'United States',
+              maxResults: 7,
+              detailedInstructions: true,
+            })
+            picked = retry2.recipes || []
+          } else {
+            picked = []
+          }
         } catch {}
       }
     }
