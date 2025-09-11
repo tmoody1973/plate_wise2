@@ -328,22 +328,27 @@ export default function PlannerV3() {
   };
 
   // Apply/Reset/Rebuild helpers
-  const updateUrlFromFilters = () => {
+  const updateUrlFromFilters = (overrides?: { cultures?: string[]; categories?: string[]; diet?: string[]; maxTime?: string | number }) => {
     try {
       const params = new URLSearchParams(window.location.search);
       // Preserve provider and other existing params
       const provider = params.get('provider');
 
-      if (culturalCuisines.length) params.set('culturalCuisines', culturalCuisines.join(','));
+      const cultures = overrides?.cultures ?? culturalCuisines;
+      const categories = overrides?.categories ?? dishCategories;
+      const diet = overrides?.diet ?? dietaryRestrictions;
+      const maxTime = overrides?.maxTime ?? maxPrepTime;
+
+      if (cultures.length) params.set('culturalCuisines', cultures.join(','));
       else params.delete('culturalCuisines');
 
-      if (dishCategories.length) params.set('dishCategories', dishCategories.join(','));
+      if (categories.length) params.set('dishCategories', categories.join(','));
       else params.delete('dishCategories');
 
-      if (dietaryRestrictions.length) params.set('dietaryRestrictions', dietaryRestrictions.join(','));
+      if (diet.length) params.set('dietaryRestrictions', diet.join(','));
       else params.delete('dietaryRestrictions');
 
-      if (maxPrepTime && maxPrepTime !== 'any') params.set('maxPrepTime', String(maxPrepTime));
+      if (maxTime && maxTime !== 'any') params.set('maxPrepTime', String(maxTime));
       else params.delete('maxPrepTime');
 
       if (provider) params.set('provider', provider); // explicitly re-set to ensure it stays
@@ -357,9 +362,17 @@ export default function PlannerV3() {
   };
 
   const applyFilters = async () => {
-    updateUrlFromFilters();
-    // Refresh suggestions based on new filters
-    await fetchSuggestions();
+    // If user typed a culture but didn't press Enter, auto-add it
+    let nextCultures = culturalCuisines;
+    if (newCulture && newCulture.trim()) {
+      const v = newCulture.trim();
+      nextCultures = Array.from(new Set([...culturalCuisines, v]));
+      setCulturalCuisines(nextCultures);
+      setNewCulture('');
+    }
+    updateUrlFromFilters({ cultures: nextCultures });
+    // Refresh suggestions based on new filters (after state settles)
+    setTimeout(() => { fetchSuggestions(); }, 0);
     setRightTab('suggestions');
   };
 
@@ -1021,6 +1034,20 @@ export default function PlannerV3() {
                   className="w-full bg-transparent outline-none text-gray-600 placeholder-gray-400"
                 />
               </div>
+              {culturalCuisines.length > 0 && (
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {culturalCuisines.map(c => (
+                    <span key={c} className="px-2 py-1 rounded-full bg-white border text-sm inline-flex items-center gap-2">
+                      <span className="capitalize">{c}</span>
+                      <button
+                        className="text-gray-500 hover:text-gray-700"
+                        onClick={() => setCulturalCuisines(prev => prev.filter(x => x !== c))}
+                        title="Remove"
+                      >×</button>
+                    </span>
+                  ))}
+                </div>
+              )}
             </div>
 
             {/* Prep Time */}
