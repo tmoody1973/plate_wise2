@@ -72,6 +72,10 @@ export default function PlannerV3() {
   const [pricingStreaming, setPricingStreaming] = useState(false);
   const [pricingLog, setPricingLog] = useState<Array<{ level: 'info'|'warn'|'error'; text: string }>>([]);
   const [explainKey, setExplainKey] = useState<string | null>(null);
+  // Suggestions diagnostics and relaxers
+  const [noResultReasons, setNoResultReasons] = useState<string[]>([]);
+  const [relaxers, setRelaxers] = useState<Array<{ key: string; label: string; patch: any }>>([]);
+  const [lastFilterSnapshot, setLastFilterSnapshot] = useState<any | null>(null);
 
   // Amount parsing helpers for the stepper
   const parseAmountNumber = (s: string | number | undefined): number => {
@@ -409,16 +413,51 @@ export default function PlannerV3() {
           dietaryRestrictions,
           mealTypes: slotType ? [slotType] : ['dinner'],
           mealCount: 6,
+          maxPrepTime: maxPrepTime === 'any' ? undefined : Number(maxPrepTime)
         }),
       });
       const data = await res.json();
-      if (data?.success) setSuggestions(data.data.recipes || []);
+      if (data?.success) {
+        setSuggestions(data.data.recipes || []);
+        if ((data.data.recipes || []).length === 0) {
+          setNoResultReasons(Array.isArray(data.data.reasons) ? data.data.reasons : []);
+          setRelaxers(Array.isArray(data.data.relaxers) ? data.data.relaxers : []);
+        }
+      }
       else setError(data?.error || 'Failed to get suggestions');
     } catch (e: any) {
       setError(e?.message || 'Failed to get suggestions');
     } finally {
       setSuggestionsLoading(false);
     }
+  };
+
+  const applyRelaxer = (r: { key: string; label: string; patch: any }) => {
+    setLastFilterSnapshot({
+      culturalCuisines: [...culturalCuisines],
+      dishCategories: [...dishCategories],
+      maxPrepTime,
+    });
+    const p = r.patch || {};
+    if (Array.isArray(p.culturesAppend) && p.culturesAppend.length) {
+      setCulturalCuisines(prev => Array.from(new Set([...prev, ...p.culturesAppend])));
+    }
+    if (Array.isArray(p.categoriesAppend) && p.categoriesAppend.length) {
+      setDishCategories(prev => Array.from(new Set([...prev, ...p.categoriesAppend])));
+    }
+    if (p.maxPrepTime !== undefined && p.maxPrepTime !== null) {
+      setMaxPrepTime(String(p.maxPrepTime));
+    }
+    setTimeout(() => { fetchSuggestions(); }, 0);
+  };
+
+  const undoRelaxer = () => {
+    if (!lastFilterSnapshot) return;
+    setCulturalCuisines(lastFilterSnapshot.culturalCuisines || []);
+    setDishCategories(lastFilterSnapshot.dishCategories || []);
+    setMaxPrepTime(lastFilterSnapshot.maxPrepTime ?? 'any');
+    setLastFilterSnapshot(null);
+    setTimeout(() => { fetchSuggestions(); }, 0);
   };
 
   const pricePlan = async () => {
@@ -1199,7 +1238,33 @@ export default function PlannerV3() {
           {rightTab === 'suggestions' ? (
             <div>
               {suggestions.length === 0 && !suggestionsLoading && (
-                <p className="text-sm text-gray-600">Click a row’s “Get suggestions” to see ideas here.</p>
+                <div className="space-y-3">
+                  <p className="text-sm text-gray-700">No results for the current filters.</p>
+                  {noResultReasons.length > 0 && (
+                    <div>
+                      <div className="text-xs font-medium text-gray-700 mb-1">Why:</div>
+                      <ul className="list-disc pl-5 text-sm text-gray-600 space-y-0.5">
+                        {noResultReasons.map((r, i) => (<li key={i}>{r}</li>))}
+                      </ul>
+                    </div>
+                  )}
+                  {relaxers.length > 0 && (
+                    <div>
+                      <div className="text-xs font-medium text-gray-700 mb-1">Try:</div>
+                      <div className="flex flex-wrap gap-2">
+                        {relaxers.map((r) => (
+                          <button key={r.key} className="px-3 py-1.5 rounded-full border bg-white text-gray-800 text-sm" onClick={() => applyRelaxer(r)}>{r.label}</button>
+                        ))}
+                        {lastFilterSnapshot && (
+                          <button className="px-3 py-1.5 rounded-full bg-gray-100 text-gray-800 text-sm" onClick={undoRelaxer}>Undo</button>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                  {noResultReasons.length === 0 && relaxers.length === 0 && (
+                    <p className="text-xs text-gray-500">Try widening culture, adding sides, or allowing more prep time.</p>
+                  )}
+                </div>
               )}
               {suggestionsStatus && <div className="text-xs text-gray-600 mb-2">{suggestionsStatus}</div>}
               <div className="space-y-3">

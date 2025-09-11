@@ -71,6 +71,8 @@ export async function POST(request: NextRequest) {
       country,
       householdSize = 4,
       timeFrame = 'week',
+      // Optional UX filters (not required by model, used for post-filtering and reasons)
+      maxPrepTime,
     } = body;
 
     console.log('🍽️ Generating recipes using Discover pipeline (web search + import)...');
@@ -166,6 +168,16 @@ export async function POST(request: NextRequest) {
 
     let picked = resp.recipes || []
 
+    // --- Diagnose causes for potential empty results by simulating filters independently ---
+    const reasons: string[] = []
+    const diag = {
+      initial: picked.length,
+      afterCategory: 0,
+      afterDietary: 0,
+      afterCulture: 0,
+      afterTime: 0,
+    }
+
     // Optional category filter (keyword-based, fail-soft)
     const CATEGORY_KEYWORDS: Record<string, string[]> = {
       appetizer: ['appetizer','starter','finger food','snack','tapas'],
@@ -192,7 +204,10 @@ export async function POST(request: NextRequest) {
         return wanted.has('other') // allow 'other' as catch-all
       }
       const filtered = picked.filter(isMatch)
+      diag.afterCategory = filtered.length
       if (filtered.length > 0) picked = filtered
+    } else {
+      diag.afterCategory = picked.length
     }
     // Post-filter by dietary if needed
     if ((dietaryRestrictions || []).length) {
@@ -206,7 +221,11 @@ export async function POST(request: NextRequest) {
         }
         return true
       }
-      picked = picked.filter(ok)
+      const filtered = picked.filter(ok)
+      diag.afterDietary = filtered.length
+      picked = filtered
+    } else {
+      diag.afterDietary = picked.length
     }
     // Cultural hard filter helper and first pass
     const applyCulturalFilter = (list: any[]) => {
@@ -228,7 +247,23 @@ export async function POST(request: NextRequest) {
       const out = list.filter(strongMatch)
       return out.length ? out : list // if strict filter empties, keep original to avoid zero unless later we decide to show none
     }
+    const beforeCulture = picked.length
     picked = applyCulturalFilter(picked)
+    diag.afterCulture = picked.length
+
+    // Time filtering (optional): keep those with total_time_minutes <= maxPrepTime
+    const maxTimeNum = (maxPrepTime !== undefined && maxPrepTime !== null && maxPrepTime !== 'any') ? Number(maxPrepTime) : undefined
+    if (Number.isFinite(maxTimeNum as number)) {
+      const t = maxTimeNum as number
+      const filtered = picked.filter((rec: any) => {
+        const total = Number(rec.total_time_minutes || rec.metadata?.totalTime || rec.metadata?.total_time || rec.totalTime)
+        return !Number.isFinite(total) || total <= t
+      })
+      diag.afterTime = filtered.length
+      picked = filtered
+    } else {
+      diag.afterTime = picked.length
+    }
 
     if (!picked.length) {
       // Fail-soft fallback: broaden query and retry once or twice
@@ -262,10 +297,39 @@ export async function POST(request: NextRequest) {
     }
 
     if (!picked.length) {
+      // Build human-readable reasons
+      if ((culturalCuisines || []).length && diag.afterCulture === 0 && beforeCulture > 0) {
+        reasons.push(`The selected culture (${culturalCuisines.join(', ')}) is very specific and removed all results.`)
+      }
+      if (wanted.size && diag.afterCategory === 0) {
+        reasons.push(`Meal type/category (${Array.from(wanted).join(', ')}) combined with other filters resulted in no matches.`)
+      }
+      if ((dietaryRestrictions || []).length && diag.afterDietary === 0) {
+        reasons.push(`Dietary restrictions (${dietaryRestrictions.join(', ')}) filtered out the available recipes.`)
+      }
+      if (Number.isFinite(maxTimeNum as number) && diag.afterTime === 0) {
+        reasons.push(`Prep/total time limit (≤ ${maxTimeNum} min) is too strict.`)
+      }
+      if (!reasons.length) {
+        reasons.push('No good sources found for the current filters. Try widening culture or categories.')
+      }
+
+      // Compose one-click relaxers
+      const relaxers: Array<{ key: string; label: string; patch: any }> = []
+      if ((culturalCuisines || []).some((c: string) => /african[-\s]?american/i.test(c))) {
+        relaxers.push({ key: 'add_related_southern_us', label: 'Include related: Southern US', patch: { culturesAppend: ['southern united states', 'southern cuisine'] } })
+      }
+      if (Number.isFinite(maxTimeNum as number) && (maxTimeNum as number) < 60) {
+        relaxers.push({ key: 'allow_60_min', label: 'Allow 45–60 min', patch: { maxPrepTime: 60 } })
+      }
+      if (!Array.isArray(dishCategories) || !dishCategories.includes('side')) {
+        relaxers.push({ key: 'include_sides', label: 'Include sides', patch: { categoriesAppend: ['side'] } })
+      }
+
       return NextResponse.json({
         success: true,
         message: 'No matches for filters; returned 0 results',
-        data: { recipes: [], summary: { totalRecipes: 0, culturalDiversity: [], averageTime: 0, readyForPricing: false, enhancedSearch: true, realUrls: 0, withImages: 0 } },
+        data: { recipes: [], reasons, relaxers, summary: { totalRecipes: 0, culturalDiversity: [], averageTime: 0, readyForPricing: false, enhancedSearch: true, realUrls: 0, withImages: 0 } },
         timestamp: new Date().toISOString()
       })
     }
