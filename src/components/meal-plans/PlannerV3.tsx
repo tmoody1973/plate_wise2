@@ -76,6 +76,9 @@ export default function PlannerV3() {
   const [noResultReasons, setNoResultReasons] = useState<string[]>([]);
   const [relaxers, setRelaxers] = useState<Array<{ key: string; label: string; patch: any }>>([]);
   const [lastFilterSnapshot, setLastFilterSnapshot] = useState<any | null>(null);
+  // Suggestions list virtualization / infinite scroll
+  const [visibleCount, setVisibleCount] = useState<number>(12);
+  const sentinelRef = useRef<HTMLDivElement | null>(null);
 
   // Amount parsing helpers for the stepper
   const parseAmountNumber = (s: string | number | undefined): number => {
@@ -406,6 +409,7 @@ export default function PlannerV3() {
       setError(null);
       // Clear stale list so off-culture results don't linger while filtering
       setSuggestions([]);
+      setVisibleCount(12);
       const res = await fetch('/api/meal-plans/recipes-only', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -421,6 +425,8 @@ export default function PlannerV3() {
       const data = await res.json();
       if (data?.success) {
         setSuggestions(data.data.recipes || []);
+        // reset paging
+        setVisibleCount(12);
         if ((data.data.recipes || []).length === 0) {
           setNoResultReasons(Array.isArray(data.data.reasons) ? data.data.reasons : []);
           setRelaxers(Array.isArray(data.data.relaxers) ? data.data.relaxers : []);
@@ -461,6 +467,39 @@ export default function PlannerV3() {
     setLastFilterSnapshot(null);
     setTimeout(() => { fetchSuggestions(); }, 0);
   };
+
+  // Infinite scroll using IntersectionObserver
+  useEffect(() => {
+    const node = sentinelRef.current;
+    if (!node) return;
+    const obs = new IntersectionObserver((entries) => {
+      for (const e of entries) {
+        if (e.isIntersecting) {
+          setVisibleCount((n) => Math.min(n + 10, Math.max(n + 10, suggestions.length)));
+        }
+      }
+    }, { root: null, rootMargin: '200px', threshold: 0 });
+    obs.observe(node);
+    return () => obs.disconnect();
+  }, [sentinelRef.current, suggestions.length]);
+
+  // Reset paging when filters change significantly
+  useEffect(() => { setVisibleCount(12); }, [culturalCuisines.join(','), dishCategories.join(','), maxPrepTime, dietaryRestrictions.join(',')]);
+
+  const renderSkeleton = (count = 6) => (
+    <div className="space-y-2">
+      {Array.from({ length: count }).map((_, i) => (
+        <div key={i} className="border rounded-xl p-3 flex items-center gap-3 animate-pulse bg-white">
+          <div className="w-14 h-14 bg-gray-200 rounded-lg" />
+          <div className="flex-1 min-w-0">
+            <div className="h-3 bg-gray-200 rounded w-2/3 mb-2" />
+            <div className="h-3 bg-gray-100 rounded w-1/3" />
+          </div>
+          <div className="w-12 h-6 bg-gray-100 rounded" />
+        </div>
+      ))}
+    </div>
+  );
 
   const pricePlan = async () => {
     try {
@@ -1269,8 +1308,9 @@ export default function PlannerV3() {
                 </div>
               )}
               {suggestionsStatus && <div className="text-xs text-gray-600 mb-2">{suggestionsStatus}</div>}
+              {suggestionsLoading && renderSkeleton(6)}
               <div className="space-y-3">
-                {sortSuggestions(suggestions).map((r) => (
+                {sortSuggestions(suggestions).slice(0, visibleCount).map((r) => (
                   <div key={r.id} className="border rounded-xl p-3 flex items-center justify-between hover:shadow transition" draggable onDragStart={(e)=>{try{e.dataTransfer.setData('text/plain', JSON.stringify(r));}catch{}}}>
                     <div className="flex items-center gap-3 min-w-0">
                       {r.imageUrl && (<img src={r.imageUrl} alt={r.title} className="w-14 h-14 object-cover rounded-lg" onError={(e)=>{(e.target as HTMLImageElement).style.display='none'}} />)}
@@ -1285,11 +1325,13 @@ export default function PlannerV3() {
                     }}>Add</button>
                   </div>
                 ))}
+                {/* Infinite scroll sentinel */}
+                <div ref={sentinelRef} />
               </div>
             </div>
           ) : (
             <div className="space-y-3">
-              {sortSuggestions(myRecipes).map((r) => (
+              {sortSuggestions(myRecipes).slice(0, visibleCount).map((r) => (
                 <div key={r.id} className="border rounded-xl p-3 flex items-center justify-between hover:shadow transition">
                   <div className="flex items-center gap-3 min-w-0">
                     {(r.imageUrl || r?.metadata?.imageUrl) && (<img src={r.imageUrl || r.metadata?.imageUrl} alt={r.title} className="w-14 h-14 object-cover rounded-lg" onError={(e)=>{(e.target as HTMLImageElement).style.display='none'}} />)}
@@ -1304,6 +1346,7 @@ export default function PlannerV3() {
                   }}>Add</button>
                 </div>
               ))}
+              <div ref={sentinelRef} />
             </div>
           )}
         </aside>
