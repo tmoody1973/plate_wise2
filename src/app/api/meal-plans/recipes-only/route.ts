@@ -97,11 +97,44 @@ export async function POST(request: NextRequest) {
         'african-american', 'african american', 'black american', 'soul food',
         'southern black', 'southern united states', 'southern cuisine', 'gullah geechee'
       ],
+      // Louisiana regional cuisines
+      'cajun': [
+        'cajun', 'louisiana cajun', 'acadiana cajun', 'acadian cajun', 'cajun cuisine', 'cajun recipes', 'south louisiana cajun'
+      ],
+      'creole': [
+        // Intend Louisiana/New Orleans Creole here; Caribbean/Haitian handled under caribbean/west-indies
+        'creole', 'louisiana creole', 'new orleans creole', 'creole cuisine', 'creole recipes', 'nola creole'
+      ],
+      // Caribbean umbrella
+      'caribbean': [
+        'caribbean', 'west indian', 'west indies', 'jamaican', 'trinidadian', 'trinidad & tobago', 'barbadian', 'bajan',
+        'haitian', 'puerto rican', 'dominican', 'bahamian', 'cuban', 'antillean', 'lucian', 'st lucia', 'grenadian', 'anguillian'
+      ],
+      'west indies': [
+        'west indies', 'west indian', 'caribbean', 'jamaican', 'trinidadian', 'haitian', 'puerto rican', 'dominican', 'barbadian', 'bahamian'
+      ],
       'mexican': ['mexican'],
       'hmong': ['hmong'],
       'haitian': ['haitian'],
       'japanese': ['japanese'],
       'chinese': ['chinese'],
+      // Chinese regional cuisines (Eight Great + common variants)
+      'sichuan': ['sichuan', 'szechuan', 'chuan cuisine', 'sichuanese'],
+      'cantonese': ['cantonese', 'yue cuisine', 'guangdong', 'hong kong style'],
+      'hunan': ['hunan', 'xiang cuisine', 'hunanese'],
+      'shanghai': ['shanghai', 'shanghainese', 'hu cuisine'],
+      'jiangsu': ['jiangsu', 'su cuisine', 'huaiyang', 'yangzhou', 'suzhou'],
+      'zhejiang': ['zhejiang', 'zhe cuisine', 'hangzhou', 'shaoxing', 'ningbo'],
+      'fujian': ['fujian', 'min cuisine', 'hokkien', 'hokkienese', 'minnan'],
+      'shandong': ['shandong', 'lu cuisine'],
+      'anhui': ['anhui', 'hui cuisine'],
+      'fuyang': ['fuyang'],
+      'xinjiang': ['xinjiang', 'uyghur', 'uighur'],
+      'yunnan': ['yunnan'],
+      'dongbei': ['dongbei', 'northeast chinese', 'manchurian chinese'],
+      'teochew': ['teochew', 'chaozhou'],
+      'hakka': ['hakka'] ,
+      'hainan': ['hainan', 'hainanese'] ,
       'indian': ['indian'],
       'italian': ['italian'],
       'greek': ['greek'],
