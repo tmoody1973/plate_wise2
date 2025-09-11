@@ -59,6 +59,7 @@ export default function PlannerV3() {
   const [sheetTab, setSheetTab] = useState<'suggestions' | 'library'>('suggestions');
   const [openDayIdx, setOpenDayIdx] = useState<number>(0);
   const [rightTab, setRightTab] = useState<'suggestions' | 'library'>('suggestions');
+  const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [sortBy, setSortBy] = useState<'cost'|'time'|'name'>('cost');
   const [openRecipe, setOpenRecipe] = useState<any | null>(null);
