@@ -361,7 +361,10 @@ export default function PlannerV3() {
     setPlan(prev => prev.map(s => ({ ...s, recipe: undefined })));
     setSuggestionsLoading(true);
     const days = targetDays;
-    const makeReq = async (mealType: SlotType, count: number) => fetch('/api/meal-plans/recipes-only', {
+    const providerParam = search.get('provider');
+    const provider = (providerParam || process.env.NEXT_PUBLIC_SUGGESTIONS_PROVIDER || 'perplexity').toString().toLowerCase();
+    const endpoint = provider === 'groq' ? '/api/meal-plans/recipes-groq' : '/api/meal-plans/recipes-only';
+    const makeReq = async (mealType: SlotType, count: number) => fetch(endpoint, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ culturalCuisines, dishCategories, dietaryRestrictions, mealTypes: [mealType], mealCount: count, detailedInstructions: true })
     });
@@ -411,7 +414,10 @@ export default function PlannerV3() {
       // Clear stale list so off-culture results don't linger while filtering
       setSuggestions([]);
       setVisibleCount(12);
-      const res = await fetch('/api/meal-plans/recipes-only', {
+      const providerParam = search.get('provider');
+      const provider = (providerParam || process.env.NEXT_PUBLIC_SUGGESTIONS_PROVIDER || 'perplexity').toString().toLowerCase();
+      const endpoint = provider === 'groq' ? '/api/meal-plans/recipes-groq' : '/api/meal-plans/recipes-only';
+      const res = await fetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
