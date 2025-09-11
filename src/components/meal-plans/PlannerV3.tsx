@@ -404,6 +404,8 @@ export default function PlannerV3() {
     try {
       setSuggestionsLoading(true);
       setError(null);
+      // Clear stale list so off-culture results don't linger while filtering
+      setSuggestions([]);
       const res = await fetch('/api/meal-plans/recipes-only', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

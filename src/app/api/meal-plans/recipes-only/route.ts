@@ -244,16 +244,17 @@ export async function POST(request: NextRequest) {
     const applyCulturalFilter = (list: any[]) => {
       if (!(culturalCuisines || []).length) return list
       const synSet = new Set(cultureTerms.map(s => s.toLowerCase()))
+      const aaPositive = /(soul\s*food|african[-\s]?american|gullah\s*geechee|southern\s*(black\s*)?cuisine|southern\s*black|black\s*american|southern\s*soul)/i
+      const aaNegative = /\b(haitian|caribbean|jamaican|trinidad|trinidadian|west\s*indies|west\s*indian)\b/i
       const strongMatch = (rec: any): boolean => {
         const hay = `${(rec.title||'')} ${(rec.description||'')} ${(rec.cuisine||'')} ${(rec.source||'')}`.toLowerCase()
+        // Must include at least one synonym
         let ok = false
         for (const t of synSet) { if (t && hay.includes(t)) { ok = true; break } }
-        // Guardrails for African-American
+        // Extra strict rule for African-American: require explicit positive phrase
         if (ok && cultureTerms.some(t => /african[-\s]?american|soul\s*food/i.test(t))) {
-          if (/\bhaitian|nigerian|ghanaian|ethiopian|kenyan|senegalese|caribbean\b/i.test(hay)) {
-            const aa = /\b(soul\s*food|african[-\s]?american|southern (black )?cuisine|gullah\s*geechee)\b/i.test(hay)
-            if (!aa) ok = false
-          }
+          if (!aaPositive.test(hay)) return false
+          if (aaNegative.test(hay)) return false
         }
         return ok
       }
