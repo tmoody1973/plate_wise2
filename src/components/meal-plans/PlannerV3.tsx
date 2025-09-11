@@ -919,6 +919,17 @@ export default function PlannerV3() {
         </div>
       </div>
 
+      {/* Mobile filter summary + open button */}
+      <div className="md:hidden sticky top-[52px] z-20 bg-white/90 backdrop-blur border-b px-4 py-2">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2 text-sm text-gray-700">
+            <div className="px-2 py-1 rounded-full bg-gray-100">{(culturalCuisines[0] || 'cuisine')}</div>
+            <div className="px-2 py-1 rounded-full bg-gray-100">{maxPrepTime === 'any' ? 'Any time' : `≤ ${maxPrepTime} min`}</div>
+          </div>
+          <button className="px-3 py-1.5 rounded-full border text-gray-800" onClick={() => setMobileFiltersOpen(true)}>Filters</button>
+        </div>
+      </div>
+
       {/* How to use */}
       <div className="hidden md:block bg-white border rounded-2xl shadow-sm p-4">
         <div className="text-lg font-semibold mb-1">How to use</div>
@@ -1349,6 +1360,101 @@ export default function PlannerV3() {
           )}
         </aside>
       </div>
+
+      {/* Mobile Filters Panel */}
+      {mobileFiltersOpen && (
+        <div className="md:hidden fixed inset-0 z-40 bg-white">
+          <div className="p-3 border-b flex items-center justify-between">
+            <div className="text-base font-semibold">Filters</div>
+            <button className="text-gray-600" onClick={() => setMobileFiltersOpen(false)}>Close</button>
+          </div>
+          <div className="p-4 space-y-4 overflow-auto" style={{ height: 'calc(100vh - 104px)' }}>
+            {/* Dietary */}
+            <div>
+              <div className="text-sm text-gray-600 mb-1">Dietary</div>
+              <div className="bg-gray-50 border rounded-xl px-3 py-2">
+                <select
+                  value={dietaryRestrictions[0] ?? 'any'}
+                  onChange={(e)=>{ const v = e.target.value; setDietaryRestrictions(v === 'any' ? [] : [v]); }}
+                  className="w-full bg-transparent outline-none text-gray-800"
+                >
+                  <option value="any">Any</option>
+                  {dietaryOptions.map(d => (<option key={d} value={d}>{d.replace('_',' ')}</option>))}
+                </select>
+              </div>
+            </div>
+            {/* Meal Type */}
+            <div>
+              <div className="text-sm text-gray-600 mb-1">Meal Type</div>
+              <div className="bg-gray-50 border rounded-xl px-3 py-2">
+                <select
+                  value={dishCategories[0] || 'main'}
+                  onChange={(e)=> setDishCategories([e.target.value])}
+                  className="w-full bg-transparent outline-none text-gray-800"
+                >
+                  {categoryOptions.map(cat => (<option key={cat.value} value={cat.value}>{cat.label}</option>))}
+                </select>
+              </div>
+            </div>
+            {/* Add culture */}
+            <div>
+              <div className="text-sm text-gray-600 mb-1">Add culture</div>
+              <div className="bg-gray-50 border rounded-xl px-3 py-2 flex items-center gap-2">
+                <input
+                  value={newCulture}
+                  onChange={(e)=> setNewCulture(e.target.value)}
+                  onKeyDown={(e)=>{ if(e.key==='Enter' && newCulture.trim()){ const v=newCulture.trim(); setCulturalCuisines(prev=> prev.includes(v)?prev:[...prev, v]); setNewCulture(''); } }}
+                  placeholder="e.g., Cajun, Sichuan, African-American"
+                  className="w-full bg-transparent outline-none text-gray-800"
+                />
+                <button className="px-2 py-1 rounded border" onClick={()=>{ if(newCulture.trim()){ const v=newCulture.trim(); setCulturalCuisines(prev=> prev.includes(v)?prev:[...prev, v]); setNewCulture(''); } }}>Add</button>
+              </div>
+              <div className="mt-2 flex flex-wrap gap-2">
+                {culturalCuisines.map(c => (
+                  <span key={c} className="px-2 py-1 rounded-full bg-gray-100 text-sm">{c}</span>
+                ))}
+              </div>
+            </div>
+            {/* Prep Time */}
+            <div>
+              <div className="text-sm text-gray-600 mb-1">Prep Time</div>
+              <div className="bg-gray-50 border rounded-xl px-3 py-2">
+                <select
+                  value={maxPrepTime}
+                  onChange={(e)=> setMaxPrepTime(e.target.value)}
+                  className="w-full bg-transparent outline-none text-gray-800"
+                >
+                  <option value="any">Any</option>
+                  <option value="15">Under 15 min</option>
+                  <option value="30">Under 30 min</option>
+                  <option value="45">Under 45 min</option>
+                  <option value="60">Under 60 min</option>
+                </select>
+              </div>
+            </div>
+            {/* Difficulty */}
+            <div>
+              <div className="text-sm text-gray-600 mb-1">Difficulty</div>
+              <div className="bg-gray-50 border rounded-xl px-3 py-2">
+                <select
+                  value={difficultyFilter}
+                  onChange={(e)=> setDifficultyFilter(e.target.value as any)}
+                  className="w-full bg-transparent outline-none text-gray-800"
+                >
+                  <option value="any">Any</option>
+                  <option value="easy">Easy</option>
+                  <option value="medium">Medium</option>
+                  <option value="hard">Hard</option>
+                </select>
+              </div>
+            </div>
+          </div>
+          <div className="p-3 border-t flex items-center justify-between">
+            <button className="px-4 py-2 rounded-full border" onClick={resetFilters}>Reset</button>
+            <button className="px-5 py-2 rounded-full bg-green-600 text-white" onClick={() => { setMobileFiltersOpen(false); applyFilters(); }}>Apply Filters</button>
+          </div>
+        </div>
+      )}
 
       {/* Mobile: Accordion days + Bottom Sheet */}
       <div className="md:hidden px-4">
