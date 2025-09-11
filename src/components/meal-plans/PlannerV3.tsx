@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ExpandableRowCard } from '@/components/ui/expandable-row-card';
 import { RecipeRowHeader } from '@/components/meal-plans/RecipeRowCard';
@@ -22,6 +23,7 @@ interface PlanSlot {
 
 export default function PlannerV3() {
   const search = useSearchParams();
+  const router = useRouter();
   const { user } = useAuthContext();
   const { profile } = useProfileSetup();
   const [myRecipes, setMyRecipes] = useState<any[]>([]);
@@ -330,11 +332,28 @@ export default function PlannerV3() {
   const updateUrlFromFilters = () => {
     try {
       const params = new URLSearchParams(window.location.search);
-      params.set('culturalCuisines', culturalCuisines.join(','));
-      params.set('dishCategories', dishCategories.join(','));
-      if (dietaryRestrictions.length) params.set('dietaryRestrictions', dietaryRestrictions.join(',')); else params.delete('dietaryRestrictions');
+      // Preserve provider and other existing params
+      const provider = params.get('provider');
+
+      if (culturalCuisines.length) params.set('culturalCuisines', culturalCuisines.join(','));
+      else params.delete('culturalCuisines');
+
+      if (dishCategories.length) params.set('dishCategories', dishCategories.join(','));
+      else params.delete('dishCategories');
+
+      if (dietaryRestrictions.length) params.set('dietaryRestrictions', dietaryRestrictions.join(','));
+      else params.delete('dietaryRestrictions');
+
+      if (maxPrepTime && maxPrepTime !== 'any') params.set('maxPrepTime', String(maxPrepTime));
+      else params.delete('maxPrepTime');
+
+      if (provider) params.set('provider', provider); // explicitly re-set to ensure it stays
+
+      // Keep the suggestions panel open if it was
+      if (!params.get('openSheet')) params.set('openSheet', 'suggestions');
+
       const url = `${window.location.pathname}?${params.toString()}`;
-      window.history.replaceState({}, '', url);
+      router.replace(url, { scroll: false });
     } catch {}
   };
 
