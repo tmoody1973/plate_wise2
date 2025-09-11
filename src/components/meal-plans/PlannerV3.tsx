@@ -1189,16 +1189,11 @@ export default function PlannerV3() {
             </div>
             {suggestionsLoading && <span className="text-xs text-gray-500">Loading…</span>}
           </div>
-          {/* Search + sort controls */}
+          {/* Search control (sorting pills removed by request) */}
           <div className="flex items-center gap-3 mb-4">
             <div className="flex items-center gap-2 flex-1 border rounded-xl px-4 py-3 bg-gray-50">
               <Search className="w-5 h-5 text-gray-500" />
               <input value={searchQuery} onChange={(e)=>setSearchQuery(e.target.value)} placeholder="Search recipes…" className="w-full bg-transparent outline-none text-base" />
-            </div>
-            <div className="flex items-center gap-2">
-              <button onClick={()=>setSortBy('cost')} className={`inline-flex items-center gap-1 px-4 py-2.5 rounded-xl border text-sm ${sortBy==='cost'?'bg-orange-600 text-white border-orange-600':'bg-white text-gray-700'}`}><DollarSign className="w-4 h-4"/> Cost</button>
-              <button onClick={()=>setSortBy('time')} className={`inline-flex items-center gap-1 px-4 py-2.5 rounded-xl border text-sm ${sortBy==='time'?'bg-orange-600 text-white border-orange-600':'bg-white text-gray-700'}`}><Clock className="w-4 h-4"/> Time</button>
-              <button onClick={()=>setSortBy('name')} className={`inline-flex items-center gap-1 px-4 py-2.5 rounded-xl border text-sm ${sortBy==='name'?'bg-orange-600 text-white border-orange-600':'bg-white text-gray-700'}`}><ListIcon className="w-4 h-4"/> Name</button>
             </div>
           </div>
           {rightTab === 'suggestions' ? (
