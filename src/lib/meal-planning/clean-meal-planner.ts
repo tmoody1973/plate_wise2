@@ -32,6 +32,9 @@ export interface CleanMealPlanRequest {
   maxTime?: number;
   pantry?: string[];
   exclude?: string[];
+  dishCategories?: string[];
+  country?: string;
+  language?: string;
 }
 
 export interface CleanMealPlanResponse {
@@ -96,6 +99,9 @@ class CleanMealPlannerService {
         maxTime: normalizedRequest.maxTime,
         pantry: normalizedRequest.pantry,
         exclude: normalizedRequest.exclude,
+        dishCategories: normalizedRequest.dishCategories,
+        country: normalizedRequest.country,
+        language: normalizedRequest.language,
       };
 
       const recipeUrlResponse = await perplexityRecipeUrlService.getRecipeUrls(perplexityRequest);

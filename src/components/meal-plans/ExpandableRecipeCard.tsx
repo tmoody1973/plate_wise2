@@ -178,9 +178,17 @@ export function ExpandableRecipeCard({ recipe, position, onRecipeChange }: Expan
               className="w-full max-w-2xl h-full md:h-fit md:max-h-[90%] flex flex-col bg-white rounded-3xl overflow-hidden shadow-2xl"
             >
               <motion.div layoutId={`image-${active.title}-${id}`} className="relative">
-                <div className="w-full h-64 bg-gradient-to-br from-orange-100 to-orange-200 flex items-center justify-center">
-                  <span className="text-6xl">🍳</span>
-                </div>
+                {active.image ? (
+                  <img 
+                    src={active.image} 
+                    alt={active.title}
+                    className="w-full h-64 object-cover"
+                  />
+                ) : (
+                  <div className="w-full h-64 bg-gradient-to-br from-orange-100 to-orange-200 flex items-center justify-center">
+                    <span className="text-6xl">🍳</span>
+                  </div>
+                )}
                 <div className="absolute top-4 left-4 bg-white rounded-full px-3 py-1 text-sm font-semibold text-gray-700 shadow-sm">
                   ${active.costRange.min}–${active.costRange.max}
                 </div>
@@ -263,9 +271,17 @@ export function ExpandableRecipeCard({ recipe, position, onRecipeChange }: Expan
             ${recipe.costRange.max}
           </div>
           
-          <div className="w-full h-full bg-gradient-to-br from-orange-100 to-orange-200 flex items-center justify-center">
-            <span className="text-4xl">🍳</span>
-          </div>
+          {recipe.image ? (
+            <img 
+              src={recipe.image} 
+              alt={recipe.title}
+              className="w-full h-full object-cover"
+            />
+          ) : (
+            <div className="w-full h-full bg-gradient-to-br from-orange-100 to-orange-200 flex items-center justify-center">
+              <span className="text-4xl">🍳</span>
+            </div>
+          )}
         </motion.div>
 
         {/* Recipe Content */}

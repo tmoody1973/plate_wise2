@@ -3,6 +3,7 @@ import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs'
 import { cookies } from 'next/headers'
 import { Database } from '@/types/database'
 import { searchRecipes } from '@/lib/recipes/search'
+import { ogImageExtractor } from '@/lib/integrations/og-image-extractor'
 
 function extractUnitFromName(name: string): { cleaned: string; unit?: string } {
   const KNOWN = [
@@ -159,8 +160,18 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // Extract og:images from recipe URLs in parallel
+    console.log('🖼️ Extracting recipe images from source URLs...');
+    const recipeUrls = list.map((recipe: any) => recipe.source).filter(Boolean);
+    const ogImageResults = await ogImageExtractor.extractMultipleOGImages(recipeUrls);
+
     // Convert to MealPlannerV2 expected shape (align with /api/meal-plans/recipes-only)
-    const recipes = list.map((recipe: any, index: number) => ({
+    const recipes = list.map((recipe: any, index: number) => {
+      // Get the best image: either from recipe.image or extracted og:image
+      const ogData = recipe.source ? ogImageResults.get(recipe.source) : null;
+      const imageUrl = recipe.image || ogData?.bestImage || undefined;
+
+      return {
       id: `recipe-${Date.now()}-${index}`,
       title: recipe.title,
       description: recipe.description || '',
@@ -191,14 +202,15 @@ export async function POST(request: NextRequest) {
         totalTime: Number(recipe.total_time_minutes) || 40,
         estimatedTime: Number(recipe.total_time_minutes) || 40,
       },
-      imageUrl: recipe.image,
+      imageUrl,
       source: 'profile-search',
       sourceUrl: recipe.source,
       tags: [],
       hasPricing: false,
       createdAt: new Date(),
       updatedAt: new Date(),
-    }))
+      };
+    });
 
     return new Response(
       JSON.stringify({

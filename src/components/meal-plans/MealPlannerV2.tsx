@@ -188,6 +188,7 @@ export default function MealPlannerV2() {
     country: '',
     mealCount: 7,
     mealTypes: ['dinner'] as Array<'breakfast'|'lunch'|'dinner'>,
+    dishCategories: ['main'] as Array<'appetizer'|'bread'|'breakfast'|'dessert'|'drink'|'main'|'salad'|'side'|'soup_stew'|'sauce'|'other'>,
     costMode: 'package' as 'package' | 'proportional',
     householdSize: 4,
     availableTime: 'standard',
@@ -341,6 +342,7 @@ export default function MealPlannerV2() {
           country: config.country || undefined,
           mealCount: config.mealCount,
           mealTypes: config.mealTypes,
+          dishCategories: config.dishCategories,
           householdSize: config.householdSize,
           timeFrame: config.availableTime === 'quick' ? 'quick-week' : 'week',
         })
@@ -915,6 +917,20 @@ export default function MealPlannerV2() {
     'mediterranean', 'american', 'french', 'korean', 'vietnamese'
   ];
 
+  const categoryOptions: Array<{ value: any; label: string }> = [
+    { value: 'appetizer', label: 'Appetizers' },
+    { value: 'bread', label: 'Bread' },
+    { value: 'breakfast', label: 'Breakfast' },
+    { value: 'dessert', label: 'Desserts' },
+    { value: 'drink', label: 'Drinks' },
+    { value: 'main', label: 'Main Dish' },
+    { value: 'salad', label: 'Salad' },
+    { value: 'side', label: 'Side Dish' },
+    { value: 'soup_stew', label: 'Soups, Stews' },
+    { value: 'sauce', label: 'Marinades, Sauce' },
+    { value: 'other', label: 'Other' },
+  ];
+
 
 
   return (
@@ -1020,6 +1036,24 @@ export default function MealPlannerV2() {
                   </option>
                 ))}
               </select>
+              <div className="mt-4">
+                <label className="block text-sm font-medium mb-2">Dish Categories</label>
+                <select
+                  multiple
+                  value={config.dishCategories as any}
+                  onChange={(e) => setConfig(prev => ({
+                    ...prev,
+                    dishCategories: Array.from(e.target.selectedOptions, option => option.value as any)
+                  }))}
+                  className="w-full p-2 border border-gray-300 rounded-md"
+                  size={6}
+                >
+                  {categoryOptions.map(opt => (
+                    <option key={opt.value} value={opt.value}>{opt.label}</option>
+                  ))}
+                </select>
+                <p className="text-xs text-gray-500 mt-1">Default is Main Dish. Select multiple to mix (e.g., Salad + Soup).</p>
+              </div>
               <div className="mt-4">
                 <label className="block text-sm font-medium mb-2">Dietary Restrictions</label>
                 <div className="grid grid-cols-2 gap-2 text-sm">

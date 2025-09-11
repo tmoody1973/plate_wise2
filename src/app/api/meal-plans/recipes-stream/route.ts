@@ -11,7 +11,10 @@ export async function POST(request: NextRequest) {
     householdSize = 4,
     timeFrame = 'week',
     nutritionalGoals = [],
-    excludeIngredients = []
+    excludeIngredients = [],
+    dishCategories = [],
+    country,
+    language,
   } = body;
 
   // Create a ReadableStream for Server-Sent Events
@@ -38,7 +41,10 @@ export async function POST(request: NextRequest) {
           culturalCuisines,
           dietaryRestrictions,
           maxTime: timeFrame.includes('quick') ? 30 : undefined,
-          exclude: excludeIngredients
+          exclude: excludeIngredients,
+          dishCategories,
+          country,
+          language,
         };
         
         const urlResponse = await urlService.getRecipeUrls(urlRequest);

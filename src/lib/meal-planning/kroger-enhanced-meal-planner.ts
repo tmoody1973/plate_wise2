@@ -163,7 +163,10 @@ export class KrogerEnhancedMealPlanner {
       culturalCuisines: request.culturalCuisines,
       dietaryRestrictions: request.dietaryRestrictions,
       maxTime: request.timeFrame.includes('quick') ? 30 : undefined,
-      exclude: request.excludeIngredients
+      exclude: request.excludeIngredients,
+      dishCategories: (request as any)?.dishCategories || [],
+      country: (request as any)?.country,
+      language: (request as any)?.language,
     };
     
     const response = await this.perplexityUrlService.getRecipeUrls(urlRequest);

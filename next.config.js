@@ -3,6 +3,12 @@ const isDev = process.env.NODE_ENV !== 'production';
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   typedRoutes: true,
+  // Ensure certain ESM packages are transpiled for broader browser support
+  transpilePackages: [
+    '@supabase/auth-helpers-nextjs',
+    '@supabase/auth-helpers-react',
+    '@supabase/supabase-js',
+  ],
   eslint: {
     // Warning: This allows production builds to successfully complete even if
     // your project has ESLint errors.
@@ -147,6 +153,13 @@ const nextConfig = {
       {
         protocol: 'https',
         hostname: 'lh5.googleusercontent.com',
+        port: '',
+        pathname: '/**',
+      },
+      // Unsplash images
+      {
+        protocol: 'https',
+        hostname: 'images.unsplash.com',
         port: '',
         pathname: '/**',
       },

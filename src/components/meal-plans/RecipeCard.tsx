@@ -44,10 +44,18 @@ export function RecipeCard({ recipe, position, onRecipeChange }: RecipeCardProps
           ${recipe.costRange.max}
         </div>
         
-        {/* Placeholder for recipe image */}
-        <div className="w-full h-full bg-gradient-to-br from-orange-100 to-orange-200 flex items-center justify-center">
-          <span className="text-4xl">🍳</span>
-        </div>
+        {/* Recipe image */}
+        {recipe.image ? (
+          <img 
+            src={recipe.image} 
+            alt={recipe.title}
+            className="w-full h-full object-cover"
+          />
+        ) : (
+          <div className="w-full h-full bg-gradient-to-br from-orange-100 to-orange-200 flex items-center justify-center">
+            <span className="text-4xl">🍳</span>
+          </div>
+        )}
       </div>
 
       {/* Recipe Content */}

@@ -102,7 +102,10 @@ export async function POST(request: NextRequest) {
           culturalCuisines,
           dietaryRestrictions,
           maxTime: timeFrame.includes('quick') ? 30 : undefined,
-          exclude: excludeIngredients
+          exclude: excludeIngredients,
+          dishCategories: body?.dishCategories || [],
+          country: (body as any)?.country,
+          language: (body as any)?.language,
         };
         
         const urlResponse = await urlService.getRecipeUrls(urlRequest);

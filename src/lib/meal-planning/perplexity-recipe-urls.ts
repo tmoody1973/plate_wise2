@@ -12,6 +12,9 @@ export interface PerplexityRecipeUrlRequest {
   maxTime?: number;
   pantry?: string[];
   exclude?: string[];
+  dishCategories?: string[];
+  country?: string;
+  language?: string;
 }
 
 export interface RecipeUrlResult {
@@ -159,6 +162,23 @@ export class PerplexityRecipeUrlService {
 
     console.log('🔍 Validating recipe URLs...');
     
+    const scoreDomain = (urlStr: string): number => {
+      try {
+        const u = new URL(urlStr);
+        const host = u.hostname.toLowerCase();
+        let score = 0;
+        if (host.includes('allrecipes') || host.includes('seriouseats') || host.includes('bbcgoodfood') || host.includes('foodnetwork') || host.includes('simplyrecipes')) score += 3;
+        const path = u.pathname.toLowerCase();
+        if (path.includes('/recipe')) score += 2;
+        if (/\/[a-z0-9-]+\/?$/.test(path)) score += 1; // sluggy path
+        if (path.endsWith('/recipes') || path.endsWith('/category') || path.endsWith('/categories')) score -= 2; // listicle-ish
+        return score;
+      } catch { return 0; }
+    };
+
+    const jsonLdLikelyDomains = new Set([
+      'seriouseats.com','allrecipes.com','bbcgoodfood.com','foodnetwork.com','simplyrecipes.com','taste.com.au','kingarthurbaking.com'
+    ]);
     const validationPromises = response.recipes.map(async (recipe) => {
       // If no URL, keep the recipe (we'll use fallback later)
       if (!recipe.url || recipe.url === '') {
@@ -172,17 +192,27 @@ export class PerplexityRecipeUrlService {
         // Instead of removing, just clear the URL
         return { ...recipe, url: '' };
       }
-      return recipe;
+      // Attach a simple domain score for downstream ordering
+      let score = scoreDomain(recipe.url);
+      try {
+        const h = new URL(recipe.url).hostname.replace(/^www\./,'').toLowerCase();
+        if (jsonLdLikelyDomains.has(h)) score += 1; // light bonus for schema-rich sites
+      } catch {}
+      return { ...recipe, domainScore: score } as any;
     });
 
-    const validatedRecipes = (await Promise.all(validationPromises)).filter(Boolean) as RecipeUrlResult[];
+    let validatedRecipes = (await Promise.all(validationPromises)).filter(Boolean) as (RecipeUrlResult & { domainScore?: number })[];
+    // Sort by domain score descending to prefer likely recipe pages
+    validatedRecipes = validatedRecipes.sort((a, b) => (b.domainScore || 0) - (a.domainScore || 0));
+    // Strip helper prop
+    const cleaned = validatedRecipes.map(({ domainScore, ...rest }) => rest) as RecipeUrlResult[];
     
-    console.log(`✅ URL validation complete: ${validatedRecipes.length}/${response.recipes.length} URLs valid`);
+    console.log(`✅ URL validation complete: ${cleaned.length}/${response.recipes.length} URLs valid`);
 
     return {
       ...response,
-      recipes: validatedRecipes,
-      confidence: validatedRecipes.length >= response.recipes.length * 0.8 ? response.confidence : 'low'
+      recipes: cleaned,
+      confidence: cleaned.length >= response.recipes.length * 0.8 ? response.confidence : 'low'
     };
   }
 
@@ -203,6 +233,7 @@ export class PerplexityRecipeUrlService {
       const prompt = this.buildRecipeUrlPrompt(request, retryCount);
       const schema = this.getRecipeUrlJsonSchema();
 
+      const useLargeContext = (request.dishCategories && request.dishCategories.length > 0) || ((request.culturalCuisines || []).length <= 2);
       const response = await fetch(this.baseURL, {
         method: 'POST',
         headers: {
@@ -214,7 +245,7 @@ export class PerplexityRecipeUrlService {
           messages: [
             {
               role: 'system',
-              content: 'You are a recipe discovery assistant. Search for real recipes from reputable cooking websites like AllRecipes, Food Network, Bon Appétit, Serious Eats, Taste of Home, etc. Return only valid JSON that matches the schema. Focus on authentic cultural recipes that are practical for home cooking. IMPORTANT: Only cite actual recipe websites, not YouTube videos or social media.'
+              content: 'You are a recipe discovery assistant. Search for real, individual recipe pages on reputable cooking websites. Prefer high-quality recipe domains, but if good matches are not found, use other reputable recipe sites. Avoid social/video/paywalled sites. Copy recipe URLs from citations only. Exclude listicles and category pages. Return JSON only.'
             },
             {
               role: 'user',
@@ -222,10 +253,10 @@ export class PerplexityRecipeUrlService {
             }
           ],
           max_tokens: 2000,
-          temperature: retryCount > 0 ? 0.1 : 0.3, // Lower temperature on retries
-          top_p: 0.1,
+          temperature: retryCount > 0 ? 0.1 : 0.2,
+          top_p: 0.2,
           return_citations: true, // Get real URLs from citations
-          search_context_size: "medium", // Balanced search depth
+          search_context_size: useLargeContext ? "large" : "medium",
           response_format: {
             type: "json_schema",
             json_schema: schema
@@ -318,10 +349,13 @@ export class PerplexityRecipeUrlService {
         ? initialResponse 
         : await this.validateRecipeUrls(initialResponse);
       
+      // Diversify results by domain/title and enforce requested count
+      const diversified = this.diversifyRecipes(validatedResponse.recipes, request.numberOfMeals);
+
       // If not enough valid URLs, supplement with verified fallbacks
       const successThreshold = request.numberOfMeals * 0.5; // Need at least 50% success
-      if (validatedResponse.recipes.length < successThreshold) {
-        console.log(`⚠️ Only ${validatedResponse.recipes.length}/${request.numberOfMeals} valid URLs from Perplexity`);
+      if (diversified.length < successThreshold) {
+        console.log(`⚠️ Only ${diversified.length}/${request.numberOfMeals} diversified URLs from Perplexity`);
         
         if (retryCount < maxRetries) {
           console.log(`🔄 Retrying with different prompt (${retryCount + 1}/${maxRetries})...`);
@@ -331,12 +365,12 @@ export class PerplexityRecipeUrlService {
           // Supplement with verified URLs to meet the requirement
           const fallbackResponse = this.getFallbackUrls({
             ...request,
-            numberOfMeals: request.numberOfMeals - validatedResponse.recipes.length
+            numberOfMeals: request.numberOfMeals - diversified.length
           });
           
           return {
             success: true,
-            recipes: [...validatedResponse.recipes, ...fallbackResponse.recipes],
+            recipes: [...diversified, ...fallbackResponse.recipes].slice(0, request.numberOfMeals),
             confidence: 'medium'
           };
         }
@@ -346,10 +380,11 @@ export class PerplexityRecipeUrlService {
         originalCount: parsedContent.recipes?.length || 0,
         filteredCount: filteredRecipes.length,
         validatedCount: validatedResponse.recipes.length,
+        diversifiedCount: diversified.length,
         confidence: validatedResponse.confidence
       });
 
-      return validatedResponse;
+      return { ...validatedResponse, recipes: diversified.slice(0, request.numberOfMeals) };
 
     } catch (error) {
       if (retryCount < maxRetries) {
@@ -366,6 +401,70 @@ export class PerplexityRecipeUrlService {
    * Build the prompt for recipe URL discovery
    */
   private buildRecipeUrlPrompt(request: PerplexityRecipeUrlRequest, retryCount = 0): string {
+    // Preferred domains (soft). Keep list short to avoid token bloat.
+    const globalPreferred = [
+      'seriouseats.com', 'allrecipes.com', 'bbcgoodfood.com', 'foodnetwork.com',
+      'taste.com.au', 'kingarthurbaking.com', 'simplyrecipes.com'
+    ];
+
+    const cuisine = (request.culturalCuisines?.[0] || '').toLowerCase();
+    const country = (request.country || '').toLowerCase();
+    const cuisineDomains: Record<string, string[]> = {
+      japanese: ['justonecookbook.com', 'chopstickchronicles.com', 'thewoksoflife.com', 'seriouseats.com'],
+      mexican: ['mexicanplease.com', 'isabeleats.com', 'seriouseats.com', 'allrecipes.com'],
+      indian: ['vegrecipesofindia.com', 'seriouseats.com', 'bbcgoodfood.com', 'allrecipes.com'],
+      chinese: ['thewoksoflife.com', 'redhousespice.com', 'seriouseats.com'],
+      korean: ['maangchi.com', 'seriouseats.com', 'bbcgoodfood.com'],
+      italian: ['seriouseats.com', 'allrecipes.com', 'bbcgoodfood.com'],
+      greek: ['akispetretzikis.com', 'bbcgoodfood.com', 'seriouseats.com']
+    };
+    const countryDomains: Record<string, string[]> = {
+      japan: ['justonecookbook.com', 'cookpad.com'],
+      mexico: ['mexicanplease.com', 'kiwilimon.com'],
+      india: ['vegrecipesofindia.com'],
+      italy: ['giallozafferano.com'],
+    };
+    const preferredDomains = Array.from(new Set([
+      ...(cuisineDomains[cuisine] || []),
+      ...(countryDomains[country] || []),
+      ...globalPreferred,
+    ])).slice(0, 8);
+
+    // Category synonyms help targeting
+    const cats = (request.dishCategories || []).map(s => s.toLowerCase());
+    const synonyms: string[] = [];
+    if (cats.includes('dessert')) synonyms.push('dessert', 'sweet');
+    if (cuisine === 'japanese' && cats.includes('dessert')) synonyms.push('wagashi', 'mochi', 'dorayaki', 'anko', 'castella', '和菓子');
+    if (cats.includes('soup_stew')) synonyms.push('soup', 'stew', 'broth');
+    if (cuisine === 'japanese' && cats.includes('soup_stew')) synonyms.push('miso', 'nabemono');
+    if (cats.includes('appetizer')) synonyms.push('appetizer', 'starter');
+    if (cats.includes('bread')) synonyms.push('bread', 'flatbread', 'naan', 'rolls');
+    if (cats.includes('salad')) synonyms.push('salad');
+    if (cats.includes('side')) synonyms.push('side dish');
+    if (cats.includes('drink')) synonyms.push('drink', 'beverage', 'smoothie');
+    if (synonyms.length === 0 && cats.length === 0) synonyms.push('recipe');
+
+    // Cuisine-specific enrichments for minority cuisines (e.g., Hmong, Haitian, Brazilian)
+    const cuisineSynonyms: Record<string, Record<string, string[]>> = {
+      hmong: {
+        dessert: ['ncua\u030bv (rice cake)', 'ncuv', 'sticky rice dessert', 'purple yam', 'sesame balls', 'sweet rice cake'],
+        soup_stew: ['hmong soup', 'noodles soup', 'paj ntaub broth']
+      },
+      haitian: {
+        dessert: ['pen/pain patate', 'dous makos', 'tablet pistach', 'syrup candies', 'pen patat', 'douce makos'],
+        soup_stew: ['soup joumou', 'soupe joumou', 'bouillon']
+      },
+      brazilian: {
+        dessert: ['brigadeiro', 'beijinho', 'quindim', 'pudim', 'bolo de cenoura', 'manjar branco'],
+        soup_stew: ['caldo verde', 'feijoada']
+      }
+    };
+    const cKey = cuisine.replace(/\s+/g, '');
+    const catKey = cats.includes('dessert') ? 'dessert' : cats.includes('soup_stew') ? 'soup_stew' : '';
+    if (cuisineSynonyms[cKey] && catKey && cuisineSynonyms[cKey][catKey]) {
+      synonyms.push(...cuisineSynonyms[cKey][catKey]);
+    }
+
     const dietaryText = request.dietaryRestrictions.length > 0 
       ? `Dietary restrictions: ${request.dietaryRestrictions.join(', ')}`
       : 'No dietary restrictions';
@@ -383,47 +482,70 @@ export class PerplexityRecipeUrlService {
       : 'No time restrictions';
 
     const retryInstructions = retryCount > 0 
-      ? `\n\nIMPORTANT: This is retry attempt ${retryCount + 1}. Previous URLs were invalid. Please provide DIFFERENT, VERIFIED working URLs from major cooking websites only.`
+      ? `\n\nIMPORTANT: This is retry attempt ${retryCount + 1}. Previous results were insufficient. Prefer different reputable domains and broaden synonyms. Use citations and copy URLs from citations only.`
       : '';
 
-    return `
-Find ${request.numberOfMeals} authentic recipes from reputable cooking websites.
+    const courseText = cats.length ? `Course/category: ${cats.join(', ')}` : 'Course/category: any';
+    const localeText = request.language ? `Preferred language: ${request.language}` : '';
 
-Requirements:
+    return `
+Find ${request.numberOfMeals} authentic, real recipe pages (not listicles) that match:
 - Cultural cuisines: ${request.culturalCuisines.join(', ')}
+- ${courseText}
 - ${dietaryText}
 - ${timeText}
-- ${pantryText}
-- ${excludeText}
+${localeText}
+${pantryText}
+${excludeText}
 
-Search ONLY for recipes from established recipe websites like:
-- Food Network (foodnetwork.com)
-- AllRecipes (allrecipes.com)
-- BBC Good Food (bbcgoodfood.com)
-- Serious Eats (seriouseats.com)
-- Bon Appétit (bonappetit.com)
-- Taste of Home (tasteofhome.com)
-- Food & Wine (foodandwine.com)
-- King Arthur Baking (kingarthurbaking.com)
+Quality rules:
+- Prefer recipe pages with ingredients + step-by-step instructions.
+- Prefer domains: ${preferredDomains.join(', ')}. If none suitable, use other reputable recipe sites. Avoid video/social/paywalled sites (YouTube, TikTok, Instagram, Pinterest, Reddit).
+- Exclude listicles, category indexes, or pages without a specific recipe.
+- Copy the recipe URL from a citation only. If not certain, set url = "" (empty). Do not guess.
+- Use helpful synonyms: ${synonyms.join(', ') || 'recipe'}.
+ - Diversity: Return results from at least 3 distinct domains and vary the primary ingredient/technique across items.
 
-AVOID: YouTube, TikTok, Instagram, Pinterest, social media, or video sites.
-
-Focus on:
-- Authentic cultural recipes that are well-reviewed
-- Recipes with clear ingredient lists and instructions
-- Recipes that accommodate the specified dietary restrictions
-- Popular, established recipes that are frequently referenced
-
-For the URL field:
-- If you find a real recipe URL from your search, include it
-- If you're not certain about the URL, leave it empty ("")
-- Do not construct or guess URLs
-
-EXCLUDE:
-- YouTube, TikTok, Instagram, or any video content
-- Social media posts
-- Overly complex or restaurant-only dishes${retryInstructions}
+Return concise JSON only with each item having title, url, cuisine, estimatedTime, description.${retryInstructions}
 `;
+  }
+
+  /** Diversify results by domain and title to avoid near-duplicates */
+  private diversifyRecipes(recipes: RecipeUrlResult[], target: number): RecipeUrlResult[] {
+    const normTitle = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+    const seenTitle = new Set<string>();
+    const usedDomain = new Set<string>();
+    const result: RecipeUrlResult[] = [];
+
+    const items = [...recipes];
+    for (const r of items) {
+      if (!r.url) continue;
+      let host = '';
+      try { host = new URL(r.url).hostname.replace(/^www\./,'').toLowerCase(); } catch {}
+      const t = normTitle(r.title || '');
+      if (usedDomain.has(host)) continue;
+      if (seenTitle.has(t)) continue;
+      result.push(r);
+      usedDomain.add(host);
+      seenTitle.add(t);
+      if (result.length >= target) return result;
+    }
+    // Fill remaining with items not duplicating titles (domains can repeat now)
+    for (const r of items) {
+      if (result.includes(r)) continue;
+      const t = normTitle(r.title || '');
+      if (seenTitle.has(t)) continue;
+      result.push(r);
+      seenTitle.add(t);
+      if (result.length >= target) break;
+    }
+    // Final fill if still short
+    for (const r of items) {
+      if (result.includes(r)) continue;
+      result.push(r);
+      if (result.length >= target) break;
+    }
+    return result;
   }
 
   /**
@@ -452,6 +574,10 @@ EXCLUDE:
                   type: "string",
                   description: "Primary cuisine type (e.g., Mexican, West African, Italian)"
                 },
+                course: {
+                  type: "string",
+                  description: "Course/dish category (e.g., Dessert, Soup, Appetizer)"
+                },
                 estimatedTime: {
                   type: "number",
                   description: "Total cooking time in minutes"
@@ -459,6 +585,18 @@ EXCLUDE:
                 description: {
                   type: "string",
                   description: "Brief description of the dish and its cultural significance"
+                },
+                sourceDomain: {
+                  type: "string",
+                  description: "Domain of the source website"
+                },
+                score: {
+                  type: "number",
+                  description: "0-100 match quality score"
+                },
+                reason: {
+                  type: "string",
+                  description: "Why this matches filters (1 sentence)"
                 }
               },
               required: ["title", "cuisine", "estimatedTime", "description"]
