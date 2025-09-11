@@ -146,9 +146,22 @@ export async function POST(request: NextRequest) {
       'ethiopian': ['ethiopian']
     }
 
+    // Normalize user-entered culture names to best-known keys (tolerate typos like 'african-america')
+    const normalize = (s: string) => String(s).toLowerCase().replace(/[^a-z0-9]+/g, '')
+    const keys = Object.keys(CULTURE_SYNONYMS)
+    const normIndex = new Map(keys.map(k => [normalize(k), k]))
+    const bestKeyFor = (raw: string) => {
+      const n = normalize(raw)
+      if (normIndex.has(n)) return normIndex.get(n) as string
+      // fallback: prefix or includes match
+      for (const k of keys) { const nk = normalize(k); if (n.startsWith(nk) || nk.startsWith(n)) return k }
+      for (const k of keys) { const nk = normalize(k); if (nk.includes(n) || n.includes(nk)) return k }
+      return raw.toLowerCase().trim()
+    }
+
     const cultureTerms: string[] = []
     for (const c of (culturalCuisines || [])) {
-      const key = String(c).toLowerCase().trim()
+      const key = bestKeyFor(String(c))
       const syns = CULTURE_SYNONYMS[key] || [key]
       cultureTerms.push(...syns)
     }
@@ -245,7 +258,7 @@ export async function POST(request: NextRequest) {
         return ok
       }
       const out = list.filter(strongMatch)
-      return out.length ? out : list // if strict filter empties, keep original to avoid zero unless later we decide to show none
+      return out // do not fallback; zero triggers reasons/relaxers instead of off-culture results
     }
     const beforeCulture = picked.length
     picked = applyCulturalFilter(picked)
